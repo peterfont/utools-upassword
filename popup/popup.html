@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Login Info</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin: 10px 0;
+        }
+
+        button {
+            background-color: #007BFF;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        #copyButton {
+            margin-top: 1px;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 4px;
+        }
+
+    .delete-button {
+            background-color: #FF4136;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        /* 修改显示和隐藏按钮的样式，使其大小与删除按钮一致 */
+        button.show-hide {
+            background-color: #00a65a;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+    .password-strength {
+            margin-left: 10px;
+            color: #888;
+        }
+
+        #generatedPassword {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 300px;
+            text-align: center;
+            background-color: white;
+        }
+
+    .settings-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+    .settings-group label {
+            min-width: 120px;
+            text-align: right;
+        }
+
+    .settings-group input {
+            flex: 1;
+            min-width: 100px;
+        }
+
+    .password-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+    .password-record {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+    .password-record button {
+            margin: 2px;
+            padding: 3px 8px;
+        }
+
+    .toggle-password, .copy-password {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+    .toggle-password:hover, .copy-password:hover {
+            background-color: #0056b3;
+        }
+
+    </style>
+</head>
+
+<body>
+    <h1>Login Information</h1>
+    <p id="username"></p>
+    <p id="password">
+        <span id="maskedPassword"></span>
+        <button id="showHidePassword" class="show-hide">显示</button>
+    </p>
+    <h2>密码强度标准设置</h2>
+    <div class="settings-group">
+        <label for="minLengthInput">最小长度：</label><input type="number" id="minLengthInput" /><br>
+        <label for="maxLengthInput">最大长度：</label><input type="number" id="maxLengthInput" /><br>
+        <label for="minDigitsInput">最少数字个数：</label><input type="number" id="minDigitsInput" /><br>
+        <label for="minSpecialCharsInput">最少特殊字符个数：</label><input type="number" id="minSpecialCharsInput" /><br>
+        <label for="minUpperCaseLettersInput">最少大写字母个数：</label><input type="number" id="minUpperCaseLettersInput" /><br>
+        <label for="minLowerCaseLettersInput">最少小写字母个数：</label><input type="number" id="minLowerCaseLettersInput" /><br>
+    </div>
+    <button id="saveSettingsButton">保存设置</button>
+    <button id="generatePasswordButton">生成合格密码</button>
+    <div id="generatedPasswordContainer">
+        <input type="text" id="generatedPassword" readonly />
+        <button id="copyButton">复制</button>
+    </div>
+    <button id="viewRecordsButton">查看记录</button>
+    <button id="importChromePasswords" class="action-button">
+        导入 Chrome 密码
+    </button>
+    <ul id="recordList" style="display:none;"></ul>
+    <div class="section">
+        <button id="getPasswordsButton" class="action-button">获取当前网站密码</button>
+        <div id="domainPasswords" class="password-list" style="display: none;"></div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,35 @@
+{
+    "name": "用户密码风险检测与保护",
+    "version": "1.0.0",
+    "version_name": "1.0.0-beta",
+    "description": "Detecting user password strength and managing password protection",
+    "manifest_version": 3,
+    "icons":{
+        "128":"img/logo1.png",
+        "48":"img/logo1.png",
+        "16":"img/logo1.png"
+    },
+    "permissions": [
+        "storage",
+        "tabs",
+        "webNavigation",
+        "activeTab"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["content-script.js"],
+            "run_at": "document_start"
+        }
+    ],
+    "action": {
+        "default_popup": "popup/popup.html"
+    },
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    }
+}
