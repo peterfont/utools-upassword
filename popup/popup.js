@@ -231,26 +231,97 @@ function deleteRecord(index) {
     }
 }
 
-// 为查看记录按钮添加点击事件监听器
-document.getElementById('viewRecordsButton').addEventListener('click', function () {
-    if (this.textContent === '查看记录') {
-        displayRecords();
-    } else {
-        document.getElementById('recordList').style.display = 'none';
-        this.textContent = '查看记录';
+// 将所有DOM操作封装到init函数中
+function initializePopup() {
+    const viewRecordsButton = document.getElementById('viewRecordsButton');
+    const showHidePassword = document.getElementById('showHidePassword');
+    const generatedPasswordInput = document.getElementById('generatedPassword');
+    const generatePasswordButton = document.getElementById('generatePasswordButton');
+    const copyButton = document.getElementById('copyButton');
+    
+    // 检查必要的DOM元素是否存在
+    if (!viewRecordsButton || !showHidePassword || !generatedPasswordInput || 
+        !generatePasswordButton || !copyButton) {
+        console.error('[密码管理] 部分必要的DOM元素未找到');
+        return;
     }
-});
 
-const minLengthInput = document.getElementById('minLengthInput');
-const maxLengthInput = document.getElementById('maxLengthInput');
-const minDigitsInput = document.getElementById('minDigitsInput');
-const minSpecialCharsInput = document.getElementById('minSpecialCharsInput');
-const minUpperCaseLettersInput = document.getElementById('minUpperCaseLettersInput');
-const minLowerCaseLettersInput = document.getElementById('minLowerCaseLettersInput');
-const saveSettingsButton = document.getElementById('saveSettingsButton');
-const generatePasswordButton = document.getElementById('generatePasswordButton');
-const generatedPasswordInput = document.getElementById('generatedPassword');
-const copyButton = document.getElementById('copyButton');
+    // 为查看记录按钮添加点击事件监听器
+    viewRecordsButton.addEventListener('click', function() {
+        if (this.textContent === '查看记录') {
+            displayRecords();
+        } else {
+            document.getElementById('recordList').style.display = 'none';
+            this.textContent = '查看记录';
+        }
+    });
+
+    // 为显示/隐藏密码按钮添加点击事件监听器
+    showHidePassword.addEventListener('click', function() {
+        const passwordElement = document.getElementById('maskedPassword');
+        if (!passwordElement) {
+            console.error('[密码管理] 未找到密码显示元素');
+            return;
+        }
+
+        if (loginRecords.length > 0) {
+            const realPassword = loginRecords[loginRecords.length - 1].password;
+            if (this.textContent === '显示') {
+                passwordElement.textContent = realPassword;
+                this.textContent = '隐藏';
+            } else {
+                passwordElement.textContent = '*'.repeat(realPassword.length);
+                this.textContent = '显示';
+            }
+        } else {
+            alert('没有可显示的密码记录');
+        }
+    });
+
+    // 为生成密码按钮添加点击事件监听器
+    generatePasswordButton.addEventListener('click', function() {
+        const newPassword = generatePassword();
+        generatedPasswordInput.value = newPassword;
+    });
+
+    // 为复制按钮添加点击事件监听器
+    copyButton.addEventListener('click', copyToClipboard);
+
+    // 加载设置
+    loadInitialSettings();
+}
+
+// 初始化设置
+async function loadInitialSettings() {
+    try {
+        const settings = await loadSettings();
+        const inputs = {
+            minLength: document.getElementById('minLengthInput'),
+            maxLength: document.getElementById('maxLengthInput'),
+            minDigits: document.getElementById('minDigitsInput'),
+            minSpecialChars: document.getElementById('minSpecialCharsInput'),
+            minUpperCaseLetters: document.getElementById('minUpperCaseLettersInput'),
+            minLowerCaseLetters: document.getElementById('minLowerCaseLettersInput')
+        };
+
+        // 检查所有输入框是否存在
+        Object.entries(inputs).forEach(([key, element]) => {
+            if (!element) {
+                console.error(`[密码管理] 未找到${key}输入框`);
+                return;
+            }
+            element.value = settings[key];
+        });
+
+    } catch (error) {
+        console.error('[密码管理] 加载设置失败:', error);
+    }
+}
+
+// 确保在DOM加载完成后再初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initializePopup();
+});
 
 function generatePassword() {
     const { minLength, maxLength, minDigits, minSpecialChars, minUpperCaseLetters, minLowerCaseLetters } = passwordStrengthSettings;
@@ -292,39 +363,6 @@ function generatePassword() {
     return password;
 }
 
-// 为保存设置按钮添加点击事件监听器
-saveSettingsButton.addEventListener('click', async function () {
-    const minLength = parseInt(minLengthInput.value);
-    const maxLength = parseInt(maxLengthInput.value);
-    const minDigits = parseInt(minDigitsInput.value);
-    const minSpecialChars = parseInt(minSpecialCharsInput.value);
-
-    const minUpperCaseLetters = parseInt(minUpperCaseLettersInput.value);
-    const minLowerCaseLetters = parseInt(minLowerCaseLettersInput.value);
-
-    if (minLength > maxLength) {
-        alert('最小长度不能大于最大长度，请重新输入。');
-        return;
-    }
-
-    passwordStrengthSettings.minLength = minLength;
-    passwordStrengthSettings.maxLength = maxLength;
-    passwordStrengthSettings.minDigits = minDigits;
-    passwordStrengthSettings.minSpecialChars = minSpecialChars;
-    passwordStrengthSettings.minUpperCaseLetters = minUpperCaseLetters;
-    passwordStrengthSettings.minLowerCaseLetters = minLowerCaseLetters;
-
-    try {
-        await saveSettings(passwordStrengthSettings);
-        alert('设置已保存成功');
-
-        // 重新获取所有记录并刷新显示状态
-        await updateAllRecords();
-    } catch (error) {
-        console.log('保存设置失败：', error);
-    }
-} );
-
 async function updateAllRecords() {
     const result = await new Promise((resolve) => {
         chrome.storage.local.get('loginRecords', function (res) {
@@ -334,12 +372,6 @@ async function updateAllRecords() {
     loginRecords = result || [];
     displayRecords();
 }
-
-// 为生成合格密码按钮添加点击事件监听器
-generatePasswordButton.addEventListener('click', function () {
-    const newPassword = generatePassword();
-    generatedPasswordInput.value = newPassword;
-});
 
 // 复制密码到剪贴板的函数
 async function copyToClipboard() {
@@ -361,43 +393,6 @@ async function copyToClipboard() {
     }
     document.body.removeChild(textarea);
 }
-
-// 复制按钮事件监听器
-copyButton.addEventListener('click', copyToClipboard);
-
-// 为复制按钮添加点击事件监听器
-copyButton.addEventListener('click', copyToClipboard);
-
-// 为显示/隐藏密码按钮添加点击事件监听器
-document.getElementById('showHidePassword').addEventListener('click', function () {
-    const passwordElement = document.getElementById('maskedPassword');
-    if (loginRecords.length > 0) {
-        const realPassword = loginRecords[loginRecords.length - 1].password;
-        if (this.textContent === '显示') {
-            passwordElement.textContent = realPassword;
-            this.textContent = '隐藏';
-        } else {
-            passwordElement.textContent = Array(realPassword.length).join('*');
-            this.textContent = '显示';
-        }
-    } else {
-        alert('没有可显示的密码记录');
-    }
-});
-
-// 在页面加载时加载已保存的设置
-window.onload = async function () {
-    const settings = await loadSettings();
-    minLengthInput.value = settings.minLength;
-    maxLengthInput.value = settings.maxLength;
-    minDigitsInput.value = settings.minDigits;
-    minSpecialCharsInput.value = settings.minSpecialChars;
-    minUpperCaseLettersInput.value = settings.minUpperCaseLetters;
-    minLowerCaseLettersInput.value = settings.minLowerCaseLetters;
-    
-    // 添加获取密码按钮事件
-    document.getElementById('getPasswordsButton').addEventListener('click', getChromePasswords);
-};
 
 async function getChromePasswords() {
     console.log('[密码管理] 开始获取保存的密码');
@@ -477,37 +472,6 @@ function togglePassword(index, password) {
     }
 }
 
-// 获取当前网站的密码
-async function getPasswordsForCurrentSite() {
-    console.log('[密码管理] 开始获取当前网站密码');
-    try {
-        const currentUrl = await getCurrentTabUrl();
-        const domain = new URL(currentUrl).origin;
-        console.log('[密码管理] 当前域名:', domain);
-
-        chrome.storage.local.get('loginRecords', function(result) {
-            const records = result.loginRecords || [];
-            console.log('[密码管理] 所有记录数量:', records.length);
-
-            // 筛选当前域名的记录
-            const domainRecords = records.filter(record => {
-                try {
-                    return new URL(record.url).origin === domain;
-                } catch (e) {
-                    console.error('[密码管理] URL解析错误:', e);
-                    return false;
-                }
-            });
-
-            console.log('[密码管理] 当前域名记录数量:', domainRecords.length);
-            displayDomainPasswords(domainRecords, domain);
-        });
-    } catch (error) {
-        console.error('[密码管理] 获取密码失败:', error);
-        alert('获取密码失败: ' + error.message);
-    }
-}
-
 // 显示域名密码
 function displayDomainPasswords(records, domain) {
     const container = document.getElementById('domainPasswords');
@@ -559,48 +523,3 @@ function displayDomainPasswords(records, domain) {
 
     container.style.display = 'block';
 }
-
-// 导入 Chrome 密码
-async function importChromePasswords() {
-    console.log('[密码管理] 开始导入 Chrome 密码');
-    try {
-        const currentUrl = await getCurrentTabUrl();
-        const domain = new URL(currentUrl).origin;
-        
-        // 获取当前存储的记录
-        chrome.storage.local.get('loginRecords', function(result) {
-            const records = result.loginRecords || [];
-            console.log('[密码管理] 当前存储记录数:', records.length);
-            
-            // 模拟导入过程（实际实现需要根据 Chrome API 调整）
-            alert('密码导入功能正在开发中');
-        });
-    } catch (error) {
-        console.error('[密码管理] 导入失败:', error);
-        alert('导入失败: ' + error.message);
-    }
-}
-
-// 在页面加载完成后初始化事件监听
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('[密码管理] 初始化页面事件');
-    
-    // 获取当前网站密码按钮
-    const getPasswordsButton = document.getElementById('getPasswordsButton');
-    if (getPasswordsButton) {
-        getPasswordsButton.addEventListener('click', getPasswordsForCurrentSite);
-        console.log('[密码管理] 已添加获取密码按钮事件');
-    }
-
-    // 导入 Chrome 密码按钮
-    const importButton = document.getElementById('importChromePasswords');
-    if (importButton) {
-        importButton.addEventListener('click', importChromePasswords);
-        console.log('[密码管理] 已添加导入按钮事件');
-    }
-
-    // 获取并显示版本信息
-    const manifest = chrome.runtime.getManifest();
-    document.getElementById('version').textContent = manifest.version_name || manifest.version;
-    console.log('[密码管理] 插件版本:', manifest.version_name || manifest.version);
-});
