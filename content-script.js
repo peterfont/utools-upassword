@@ -162,26 +162,92 @@
         });
     }
 
+    // 在content-script.js开头添加加密工具对象
+    window.SimpleEncryption = {
+        // 加密密钥 (建议定期更换)
+        _key: 'PasswordProtection2024!@#',
+        
+        // 生成随机盐值
+        _generateSalt() {
+            const array = new Uint8Array(8);
+            crypto.getRandomValues(array);
+            return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        },
+
+        // 基础加密函数
+        encrypt(text) {
+            try {
+                const salt = this._generateSalt();
+                const combinedKey = this._key + salt;
+                
+                // 使用XOR加密
+                let encrypted = '';
+                for (let i = 0; i < text.length; i++) {
+                    const charCode = text.charCodeAt(i) ^ combinedKey.charCodeAt(i % combinedKey.length);
+                    encrypted += String.fromCharCode(charCode);
+                }
+                
+                // 转换为Base64并添加盐值
+                return {
+                    content: btoa(encrypted),
+                    salt: salt,
+                    version: '1'
+                };
+            } catch (error) {
+                log('加密失败:', error);
+                return null;
+            }
+        },
+
+        // 基础解密函数
+        decrypt(encrypted) {
+            try {
+                if (!encrypted || !encrypted.content || !encrypted.salt) {
+                    throw new Error('无效的加密数据');
+                }
+                
+                const combinedKey = this._key + encrypted.salt;
+                const decoded = atob(encrypted.content);
+                
+                // XOR解密
+                let decrypted = '';
+                for (let i = 0; i < decoded.length; i++) {
+                    const charCode = decoded.charCodeAt(i) ^ combinedKey.charCodeAt(i % combinedKey.length);
+                    decrypted += String.fromCharCode(charCode);
+                }
+                
+                return decrypted;
+            } catch (error) {
+                log('解密失败:', error);
+                return null;
+            }
+        }
+    };
+
     // 缓存登录信息
     function cacheLoginInfo(elements) {
+        // 加密密码
+        const encryptedPassword = window.SimpleEncryption.encrypt(elements.password.value);
+        
         cachedLoginInfo = {
             username: elements.username ? elements.username.value : '',
-            password: elements.password.value,
+            password: encryptedPassword, // 存储加密后的密码
             url: window.location.href,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            isEncrypted: true
         };
         
-        // 同时保存到storage以防页面刷新
+        // 保存到storage
         chrome.storage.local.set({
             tempLoginInfo: cachedLoginInfo
         }, () => {
-            log('登录信息已保存到storage');
+            log('加密的登录信息已保存到storage');
         });
         
-        log('已缓存登录信息:');
+        log('已缓存加密的登录信息:');
         log(`- URL: ${cachedLoginInfo.url}`);
         log(`- 用户名: ${cachedLoginInfo.username}`);
-        log(`- 密码长度: ${cachedLoginInfo.password.length}`);
+        log(`- 密码已加密`);
     }
 
     // 监听所有可能的登录行为
@@ -344,72 +410,60 @@
             return;
         }
 
-        log('准备发送登录成功消息');
-        log(`缓存的登录信息:`, {
-            url: cachedLoginInfo.url,
-            username: cachedLoginInfo.username,
-            passwordLength: cachedLoginInfo.password.length
-        });
-        
         try {
-            // 先保存到本地存储
             await new Promise((resolve, reject) => {
                 chrome.storage.local.get('loginRecords', function(result) {
                     const records = result.loginRecords || [];
-                    log(`当前存储记录数: ${records.length}`);
-
-                    // 创建新记录
+                    
+                    // 创建新记录(使用已加密的密码)
                     const newRecord = {
                         url: cachedLoginInfo.url,
                         username: cachedLoginInfo.username,
-                        password: cachedLoginInfo.password,
+                        password: cachedLoginInfo.password, // 已经是加密的格式
+                        isEncrypted: true,
                         timestamp: Date.now()
                     };
 
-                    // 检查是否存在相同网站的记录
                     const sameUrlIndex = records.findIndex(record => 
                         new URL(record.url).origin === new URL(newRecord.url).origin
                     );
 
                     if (sameUrlIndex !== -1) {
-                        log(`更新已存在记录，索引: ${sameUrlIndex}`);
                         records[sameUrlIndex] = newRecord;
                     } else {
-                        log('添加新记录');
                         records.push(newRecord);
                     }
 
-                    // 保存更新后的记录
                     chrome.storage.local.set({ loginRecords: records }, function() {
                         if (chrome.runtime.lastError) {
-                            log(`保存记录失败: ${chrome.runtime.lastError.message}`);
                             reject(chrome.runtime.lastError);
                         } else {
-                            log(`保存成功，当前总记录数: ${records.length}`);
                             resolve();
                         }
                     });
                 });
             });
 
-            // 发送消息通知 popup 更新显示
+            // 发送通知消息时解密密码
+            const decryptedInfo = {
+                ...cachedLoginInfo,
+                password: window.SimpleEncryption.decrypt(cachedLoginInfo.password)
+            };
+
             await new Promise((resolve, reject) => {
                 chrome.runtime.sendMessage({
                     type: 'LOGIN_SUCCESS',
-                    data: cachedLoginInfo
+                    data: decryptedInfo
                 }, response => {
                     if (chrome.runtime.lastError) {
-                        log(`发送消息失败: ${chrome.runtime.lastError.message}`);
                         reject(chrome.runtime.lastError);
                     } else {
-                        log('发送消息成功');
                         resolve(response);
                     }
                 });
             });
 
-            // 成功后清除缓存
-            log('清除临时登录信息');
+            // 清除缓存
             cachedLoginInfo = null;
             await new Promise(resolve => {
                 chrome.storage.local.remove('tempLoginInfo', resolve);
@@ -417,9 +471,26 @@
             
         } catch (error) {
             log(`处理登录成功消息失败: ${error.message}`);
-            // 保留缓存以便重试
             return;
         }
+    }
+
+    // 修改密码检查函数以支持加密数据
+    function checkPassword(password, elements) {
+        const strategy = getPasswordStrategy(window.location.href);
+        
+        // 如果传入的是加密数据，先解密
+        if (typeof password === 'object' && password.isEncrypted) {
+            password = window.SimpleEncryption.decrypt(password);
+            if (!password) {
+                return {
+                    valid: false,
+                    reason: '密码解密失败'
+                };
+            }
+        }
+        
+        return strategy.check(password, elements);
     }
 
     // 确保DOM加载完成后再初始化
