@@ -273,11 +273,20 @@
         }
 
         log('检测到登录尝试');
+        
+        // 使用新的密码检查机制
+        const checkResult = checkPassword(elements.password.value, elements);
+        if (!checkResult.valid) {
+            log(`密码不符合要求: ${checkResult.reason}`);
+            // 可以在这里添加提示或其他处理
+        }
+
         const loginInfo = {
             username: elements.username ? elements.username.value : '',
             password: elements.password.value,
             url: window.location.href,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            checkResult: checkResult  // 添加检查结果
         };
 
         // 发送到 Service Worker 缓存
@@ -418,5 +427,99 @@
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
+    }
+
+    // 创建密码检测策略对象
+    const PasswordCheckStrategies = {
+        // 默认检测策略
+        default: {
+            name: 'default',
+            check: function(password, elements) {
+                const { username } = elements;
+                log(`使用默认策略检查密码: ${password.length} 字符`);
+                
+                // 现有的默认检测逻辑
+                return {
+                    valid: true,
+                    reason: ''
+                };
+            }
+        },
+
+        // 特殊网站的检测策略
+        specialSites: {
+            // 示例：银行网站可能需要更严格的密码规则
+            'bank': {
+                name: 'bank',
+                domains: ['*.icbc.com.cn', '*.ccb.com', '*.bankofchina.com'],
+                check: function(password, elements) {
+                    log(`使用银行网站密码检查策略`);
+                    // 银行特殊规则
+                    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+                    const hasNumber = /\d/.test(password);
+                    const hasLetter = /[a-zA-Z]/.test(password);
+                    
+                    if (password.length < 8 || !hasSpecialChar || !hasNumber || !hasLetter) {
+                        return {
+                            valid: false,
+                            reason: '银行密码必须至少8位且包含字母、数字和特殊字符'
+                        };
+                    }
+                    return {
+                        valid: true,
+                        reason: ''
+                    };
+                }
+            },
+            
+            // 示例：社交网站可能有其他要求
+            'social': {
+                name: 'social',
+                domains: ['*.facebook.com', '*.twitter.com', '*.weibo.com'],
+                check: function(password, elements) {
+                    log(`使用社交网站密码检查策略`);
+                    // 社交网站特殊规则
+                    return {
+                        valid: true,
+                        reason: ''
+                    };
+                }
+            }
+        }
+    };
+
+    // 获取适用的检测策略
+    function getPasswordStrategy(url) {
+        const domain = new URL(url).hostname;
+        
+        // 检查是否匹配特殊网站
+        for (const [type, strategy] of Object.entries(PasswordCheckStrategies.specialSites)) {
+            if (strategy.domains.some(pattern => {
+                const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+                return regex.test(domain);
+            })) {
+                log(`找到匹配的特殊策略: ${strategy.name}`);
+                return strategy;
+            }
+        }
+        
+        // 没有匹配的特殊策略，使用默认策略
+        return PasswordCheckStrategies.default;
+    }
+
+    // 修改原有的检查密码函数
+    function checkPassword(password, elements) {
+        const strategy = getPasswordStrategy(window.location.href);
+        log(`使用策略 ${strategy.name} 检查密码`);
+        
+        const result = strategy.check(password, elements);
+        
+        if (!result.valid) {
+            log(`密码检查未通过: ${result.reason}`);
+        } else {
+            log('密码检查通过');
+        }
+        
+        return result;
     }
 })();
