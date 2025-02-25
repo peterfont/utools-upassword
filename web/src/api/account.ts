@@ -4,7 +4,8 @@ import type { AccountRecord } from '@/types/account'
 export const getAccountList = () => {
   return request<AccountRecord[]>({
     url: '/api/data',
-    method: 'get'
+    method: 'get',
+    data: { userId: localStorage.getItem('userId') }
   })
 }
 
