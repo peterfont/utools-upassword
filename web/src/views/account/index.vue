@@ -1,9 +1,18 @@
 <template>
   <div class="account-container">
-    <!-- 添加搜索栏 -->
-    <div class="search-bar">
-      <el-form :inline="true" :model="searchForm">
-        <el-form-item>
+    <!-- 搜索和工具栏 -->
+    <div class="header-container">
+      <!-- 搜索表单 -->
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="网址:">
+          <el-input
+            v-model="searchForm.url"
+            placeholder="请输入网址"
+            clearable
+            @clear="handleSearch"
+          />
+        </el-form-item>
+        <el-form-item label="用户名:">
           <el-input
             v-model="searchForm.username"
             placeholder="请输入用户名"
@@ -12,33 +21,30 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-input
-            v-model="searchForm.url"
-            placeholder="请输入网址"
-            clearable
-            @clear="handleSearch"
-          />
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
+          <el-button type="primary" @click="handleAdd">新增账户</el-button>
         </el-form-item>
       </el-form>
     </div>
 
-    <div class="toolbar">
-      <el-button type="primary" @click="handleAdd">新增账户</el-button>
-    </div>
-
-    <el-table :data="accountList" v-loading="loading">
+    <!-- 表格 -->
+    <el-table 
+      :data="accountList" 
+      v-loading="loading"  
+      border
+      :empty-text="'暂无数据'"
+    >
+      <el-table-column prop="url" label="网址" show-overflow-tooltip />
       <el-table-column prop="username" label="用户名" />
       <el-table-column prop="password" label="密码" show-overflow-tooltip />
-      <el-table-column prop="url" label="网址" />
-      <el-table-column prop="timestamp" label="创建时间">
+      <el-table-column prop="timestamp" label="创建时间" width="160">
         <template #default="{ row }">
           {{ formatTime(row.timestamp) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
           <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
@@ -46,17 +52,23 @@
       </el-table-column>
     </el-table>
 
-    <!-- 添加分页组件 -->
+    <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
         v-model:current-page="page.current"
         v-model:page-size="page.size"
         :page-sizes="[10, 20, 50, 100]"
         :total="page.total"
-        layout="total, sizes, prev, pager, next"
+        layout="total, sizes, prev, pager, next, jumper"
+        :pager-count="7"
+        background
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-      />
+      >
+        <template #total>
+          总计 <strong>{{ page.total }}</strong> 条
+        </template>
+      </el-pagination>
     </div>
 
     <el-dialog
@@ -241,12 +253,20 @@ const handleSubmit = async () => {
   padding: 20px;
 }
 
-.search-bar {
+.header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 20px;
 }
 
+.search-form {
+  flex: 1;
+}
+
 .toolbar {
-  margin-bottom: 20px;
+  margin-left: 16px;
+  white-space: nowrap;
 }
 
 .pagination-container {
@@ -257,5 +277,16 @@ const handleSubmit = async () => {
 
 :deep(.el-form--inline .el-form-item) {
   margin-right: 16px;
+  margin-bottom: 0;
 }
+
+:deep(.el-table) {
+  margin-top: 8px;
+}
+/* 调整表单项样式 */
+:deep(.el-form-item__label) {
+  color: #606266;
+  font-weight: normal;
+}
+
 </style>
