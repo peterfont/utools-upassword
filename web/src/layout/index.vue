@@ -74,10 +74,12 @@ import { Document, ArrowDown, Fold, Expand } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { logout } from '@/api/user'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const route = useRoute()
-const username = ref(localStorage.getItem('username') || '用户')
+const userStore = useUserStore()
+const username = computed(() => userStore.userInfo?.username || '用户')
 const isCollapse = ref(false)
 const isMobile = ref(false)
 

@@ -47,7 +47,8 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import { login, register } from '@/api/user'
+import { login, register, getUserInfo } from '@/api/user'
+import { useUserStore } from '@/store/user'
 import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
@@ -83,7 +84,13 @@ const handleLogin = async () => {
     loading.value = true
     const response = await login(loginForm)
     const token = response.data
-    localStorage.setItem('token', token)
+    // 设置token到store中
+    const userStore = useUserStore()
+    userStore.setToken(token)
+    
+    // 获取用户信息
+    const userInfoResponse = await getUserInfo()
+    userStore.setUserInfo(userInfoResponse.data)
 
     // 通知插件登录成功
     if (chrome?.runtime?.sendMessage) {
