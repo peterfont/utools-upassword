@@ -39,7 +39,7 @@ export const register = (data: LoginData) => {
 // 获取用户信息
 export const getUserInfo = () => {
   return request({
-    url: '/api/user/info',
+    url: '/auth/user/info',
     method: 'get'
   })
 }
@@ -53,7 +53,6 @@ export const logout = () => {
   
   return request<ServerResponseEntityString>({
     url: '/auth/logout',
-    method: 'post',
-    params: { token }
+    method: 'post'
   })
 }

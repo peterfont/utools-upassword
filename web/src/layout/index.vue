@@ -106,21 +106,20 @@ const toggleMenu = () => {
 const activeMenu = computed(() => route.path)
 
 const handleCommand = async (command: string) => {
-  switch (command) {
-    case 'settings':
-      router.push('/settings')
-      break
-    case 'logout':
-      try {
-        await logout()
-        localStorage.removeItem('token')
-        localStorage.removeItem('username')
-        ElMessage.success('退出登录成功')
-        router.push('/login')
-      } catch (error) {
-        ElMessage.error('退出登录失败')
+  if (command === 'logout') {
+    try {
+      await logout()
+      localStorage.removeItem('token')
+      // 通知插件退出登录
+      if (chrome?.runtime?.sendMessage) {
+        chrome.runtime.sendMessage({ 
+          type: 'LOGOUT_SUCCESS'
+        })
       }
-      break
+      router.push('/login')
+    } catch (error: any) {
+      ElMessage.error(error.message || '退出失败')
+    }
   }
 }
 

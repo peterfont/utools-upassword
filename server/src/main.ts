@@ -23,8 +23,8 @@ async function bootstrap() {
   SwaggerModule.setup('api-docs', app, document);
 
   // 启动应用
-  await app.listen(3000);
-  console.log('应用已启动: http://localhost:3000');
+  await app.listen(8081);
+  console.log('应用已启动: http://localhost:8081');
 }
 
 bootstrap();

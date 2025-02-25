@@ -15,17 +15,45 @@ interface ApiResponse<T = any> {
 }
 
 const request = axios.create({
-  timeout: 5000,
+  timeout: 15000, // 增加超时时间到15秒
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded'
-  }
+  },
+  // 添加请求重试配置
+  retry: 3, // 重试次数
+  retryDelay: 1000 // 重试间隔时间
 })
+
+// 添加请求重试拦截器
+axios.interceptors.response.use(undefined, async (err) => {
+  const config = err.config;
+  
+  // 如果配置了重试
+  if (config && config.retry) {
+    // 设置重试计数器
+    config.__retryCount = config.__retryCount || 0;
+    
+    // 检查是否已经达到重试次数
+    if (config.__retryCount < config.retry) {
+      // 增加重试计数
+      config.__retryCount += 1;
+      
+      // 延迟重试
+      await new Promise(resolve => setTimeout(resolve, config.retryDelay));
+      
+      // 重试请求
+      return axios(config);
+    }
+  }
+  
+  return Promise.reject(err);
+});
 
 request.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token')
     if (token) {
-      config.headers.Authorization = token
+      config.headers.Authorization = `Bearer ${token}`
     }
 
     // 将请求参数转换为表单格式
@@ -46,7 +74,7 @@ request.interceptors.response.use(
     const res = response.data as ApiResponse
     
     // 判断业务状态码
-    if (res.success && res.code === '00000') {
+    if (res.success && res.code === '200') {
       // 直接返回 data 数据
       return res
     }

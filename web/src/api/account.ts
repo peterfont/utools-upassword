@@ -47,13 +47,3 @@ export const deleteAccount = (id: number) => {
     method: 'delete'
   })
 }
-
-const loadData = async () => {
-  try {
-    loading.value = true
-    const res = await getAccountList()
-    accountList.value = res.data.content
-  } finally {
-    loading.value = false
-  }
-}
