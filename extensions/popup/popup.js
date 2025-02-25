@@ -314,11 +314,6 @@ async function loadInitialSettings() {
     }
 }
 
-// 确保在DOM加载完成后再初始化
-document.addEventListener('DOMContentLoaded', function() {
-    initializePopup();
-});
-
 function generatePassword() {
     const { minLength, maxLength, minDigits, minSpecialChars, minUpperCaseLetters, minLowerCaseLetters } = passwordStrengthSettings;
     const charset = {
@@ -524,24 +519,41 @@ const WEB_URL = 'http://localhost:3000';
 
 // 检查登录状态
 async function checkLoginStatus() {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    showNotLoggedIn();
-    return;
-  }
-
+  // 从插件自己的 chrome.storage 中获取 token
   try {
+    const result = await new Promise((resolve) => {
+      chrome.storage.local.get('webToken', (result) => {
+        resolve(result.webToken);
+      });
+    });
+
+    if (!result) {
+      console.log('[密码管理] 未找到token');
+      showNotLoggedIn();
+      return;
+    }
+
     // 验证 token 有效性
     const response = await fetch(`${WEB_URL}/api/user/info`, {
       headers: {
-        'Authorization': token
+        'Authorization': result
       }
     });
 
     if (response.ok) {
       const data = await response.json();
+      // 验证成功后保存用户信息
+      await new Promise((resolve) => {
+        chrome.storage.local.set({
+          userInfo: data
+        }, resolve);
+      });
       showLoggedIn(data);
     } else {
+      // token 失效，清除存储
+      await new Promise((resolve) => {
+        chrome.storage.local.remove(['webToken', 'userInfo'], resolve);
+      });
       showNotLoggedIn();
     }
   } catch (error) {
@@ -587,6 +599,64 @@ document.addEventListener('DOMContentLoaded', () => {
 // 监听来自网页的消息
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'LOGIN_SUCCESS') {
+    console.log('[密码管理] 收到登录成功消息');
+    // 保存 token 到插件的 storage
+    chrome.storage.local.set({
+      webToken: message.data.token,
+      userInfo: message.data.userInfo
+    }, () => {
+      checkLoginStatus();
+    });
+  }
+});
+
+// 检查登录状态并初始化popup
+async function initPopup() {
+  console.log('[密码管理] 初始化popup');
+  
+  // 首先检查登录状态
+  await checkLoginStatus();
+  
+  // 加载设置
+  await loadInitialSettings();
+  
+  // 绑定事件监听器
+  initializeEventListeners();
+}
+
+// 初始化所有事件监听器
+function initializeEventListeners() {
+  // 登录按钮点击事件
+  document.getElementById('goToLogin')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/login` });
+  });
+
+  // 设置按钮点击事件
+  document.getElementById('goToSettings')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/settings` });
+  });
+
+  // 账户管理按钮点击事件
+  document.getElementById('goToAccounts')?.addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/account` });
+  });
+
+  // 初始化其他按钮事件
+  // initializePopup();
+}
+
+// 在DOM加载完成后执行初始化
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[密码管理] DOM加载完成，开始初始化');
+  initPopup().catch(error => {
+    console.error('[密码管理] 初始化失败:', error);
+  });
+});
+
+// 监听来自网页的消息
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'LOGIN_SUCCESS') {
+    console.log('[密码管理] 收到登录成功消息');
     checkLoginStatus();
   }
 });

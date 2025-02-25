@@ -82,7 +82,6 @@ const handleLogin = async () => {
     
     loading.value = true
     const response = await login(loginForm)
-    console.log(response)
     const token = response.data
     localStorage.setItem('token', token)
 
@@ -90,7 +89,12 @@ const handleLogin = async () => {
     if (chrome?.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ 
         type: 'LOGIN_SUCCESS',
-        data: response.data 
+        data: {
+          token: token,
+          userInfo: {
+            username: loginForm.username
+          }
+        }
       });
     }
 
