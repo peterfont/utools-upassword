@@ -42,14 +42,25 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { AccountRecord } from '@/types/account'
+
+// 需要创建 @/api/account.ts 文件
 import { getAccountList, addAccount, updateAccount, deleteAccount } from '@/api/account'
 
 const loading = ref(false)
 const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
-const accountList = ref([])
+const accountList = ref<AccountRecord[]>([])
 
-const form = ref({
+interface FormData {
+  id: string | number
+  username: string
+  password: string
+  url: string
+}
+
+const form = ref<FormData>({
   id: '',
   username: '',
   password: '',
@@ -80,13 +91,13 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = (row: AccountRecord) => {
   dialogType.value = 'edit'
   form.value = { ...row }
   dialogVisible.value = true
 }
 
-const handleDelete = async (row) => {
+const handleDelete = async (row: AccountRecord) => {
   try {
     await ElMessageBox.confirm('确认删除该记录?')
     await deleteAccount(row.id)

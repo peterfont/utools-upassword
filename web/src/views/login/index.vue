@@ -31,12 +31,16 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { login, register } from '@/api/user'
+import type { FormInstance } from 'element-plus'
 
 const router = useRouter()
 const activeTab = ref('login')
 const loading = ref(false)
+const loginFormRef = ref<FormInstance>()
+const registerFormRef = ref<FormInstance>()
 
 const loginForm = reactive({
   username: '',
@@ -47,24 +51,51 @@ const registerForm = reactive({
   username: '',
   password: ''
 })
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
+}
 
 const handleLogin = async () => {
+  if (!loginFormRef.value) return
+  
   try {
+    // 校验表单
+    await loginFormRef.value.validate()
+    
     loading.value = true
-    const token = await login(loginForm)
+    const response = await login(loginForm)
+    const token = response.data.token
     localStorage.setItem('token', token)
     router.push('/')
+  } catch (error: any) {
+    if (error.message) {
+      ElMessage.error(error.message)
+    }
   } finally {
     loading.value = false
   }
 }
 
 const handleRegister = async () => {
+  if (!registerFormRef.value) return
+  
   try {
+    // 校验表单
+    await registerFormRef.value.validate()
+    
     loading.value = true
     await register(registerForm)
     activeTab.value = 'login'
     ElMessage.success('注册成功')
+  } catch (error: any) {
+    if (error.message) {
+      ElMessage.error(error.message)
+    }
   } finally {
     loading.value = false
   }
