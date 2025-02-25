@@ -39,13 +39,21 @@
 <script setup lang="ts">
 import { Document, ArrowDown } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
+import { logout } from '@/api/user'
 
 const router = useRouter()
 
-const handleCommand = (command: string) => {
+const handleCommand = async (command: string) => {
   if (command === 'logout') {
-    localStorage.removeItem('token')
-    router.push('/login')
+    try {
+      await logout()
+      localStorage.removeItem('token')
+      ElMessage.success('退出登录成功')
+      router.push('/login')
+    } catch (error) {
+      ElMessage.error('退出登录失败')
+    }
   }
 }
 </script>

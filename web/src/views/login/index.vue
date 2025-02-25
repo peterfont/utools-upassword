@@ -82,7 +82,8 @@ const handleLogin = async () => {
     
     loading.value = true
     const response = await login(loginForm)
-    const token = response.data.token
+    console.log(response)
+    const token = response.data
     localStorage.setItem('token', token)
 
     // 通知插件登录成功
