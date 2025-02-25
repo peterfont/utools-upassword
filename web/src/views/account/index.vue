@@ -21,7 +21,7 @@
       :title="dialogType === 'add' ? '新增账户' : '编辑账户'"
       v-model="dialogVisible"
     >
-      <el-form :model="form" ref="formRef" label-width="80px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
           <el-input v-model="form.username" />
         </el-form-item>
@@ -44,8 +44,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AccountRecord } from '@/types/account'
+import type { FormInstance } from 'element-plus'
 
-// 需要创建 @/api/account.ts 文件
 import { getAccountList, addAccount, updateAccount, deleteAccount } from '@/api/account'
 
 const loading = ref(false)
@@ -67,10 +67,25 @@ const form = ref<FormData>({
   url: ''
 })
 
+const formRef = ref<FormInstance>()
+
+const rules = {
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ],
+  url: [
+    { required: true, message: '请输入网址', trigger: 'blur' }
+  ]
+}
+
 const loadData = async () => {
   try {
     loading.value = true
-    accountList.value = await getAccountList()
+    const response = await getAccountList()
+    accountList.value = response.data
   } finally {
     loading.value = false
   }
@@ -109,17 +124,29 @@ const handleDelete = async (row: AccountRecord) => {
 }
 
 const handleSubmit = async () => {
+  if (!formRef.value) return
+  
   try {
+    await formRef.value.validate()
+    
     if (dialogType.value === 'add') {
-      await addAccount(form.value)
+      await addAccount({
+        ...form.value,
+        userId: Number(localStorage.getItem('userId'))
+      })
     } else {
       await updateAccount(form.value)
     }
+    
     dialogVisible.value = false
     ElMessage.success(`${dialogType.value === 'add' ? '新增' : '编辑'}成功`)
     loadData()
-  } catch (error) {
-    console.error(error)
+  } catch (error: any) {
+    if (error?.message) {
+      ElMessage.error(error.message)
+    } else {
+      ElMessage.error('操作失败')
+    }
   }
 }
 </script>
