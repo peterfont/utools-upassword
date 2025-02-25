@@ -237,11 +237,10 @@ function initializePopup() {
     const showHidePassword = document.getElementById('showHidePassword');
     const generatedPasswordInput = document.getElementById('generatedPassword');
     const generatePasswordButton = document.getElementById('generatePasswordButton');
-    const copyButton = document.getElementById('copyButton');
     
     // 检查必要的DOM元素是否存在
     if (!viewRecordsButton || !showHidePassword || !generatedPasswordInput || 
-        !generatePasswordButton || !copyButton) {
+        !generatePasswordButton) {
         console.error('[密码管理] 部分必要的DOM元素未找到');
         return;
     }
@@ -283,9 +282,6 @@ function initializePopup() {
         const newPassword = generatePassword();
         generatedPasswordInput.value = newPassword;
     });
-
-    // 为复制按钮添加点击事件监听器
-    copyButton.addEventListener('click', copyToClipboard);
 
     // 加载设置
     loadInitialSettings();
@@ -523,3 +519,74 @@ function displayDomainPasswords(records, domain) {
 
     container.style.display = 'block';
 }
+
+const WEB_URL = 'http://localhost:3000';
+
+// 检查登录状态
+async function checkLoginStatus() {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    showNotLoggedIn();
+    return;
+  }
+
+  try {
+    // 验证 token 有效性
+    const response = await fetch(`${WEB_URL}/api/user/info`, {
+      headers: {
+        'Authorization': token
+      }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      showLoggedIn(data);
+    } else {
+      showNotLoggedIn();
+    }
+  } catch (error) {
+    console.error('[密码管理] 验证登录状态失败:', error);
+    showNotLoggedIn();
+  }
+}
+
+// 显示未登录状态
+function showNotLoggedIn() {
+  document.getElementById('notLoggedIn').style.display = 'block';
+  document.getElementById('loggedIn').style.display = 'none';
+}
+
+// 显示已登录状态
+function showLoggedIn(userInfo) {
+  document.getElementById('notLoggedIn').style.display = 'none';
+  document.getElementById('loggedIn').style.display = 'block';
+  document.getElementById('username').textContent = userInfo.username;
+}
+
+// 初始化事件监听
+document.addEventListener('DOMContentLoaded', () => {
+  // 检查登录状态
+  checkLoginStatus();
+
+  // 登录按钮点击事件
+  document.getElementById('goToLogin').addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/login` });
+  });
+
+  // 设置按钮点击事件 
+  document.getElementById('goToSettings').addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/settings` });
+  });
+
+  // 账户管理按钮点击事件
+  document.getElementById('goToAccounts').addEventListener('click', () => {
+    chrome.tabs.create({ url: `${WEB_URL}/account` });
+  });
+});
+
+// 监听来自网页的消息
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === 'LOGIN_SUCCESS') {
+    checkLoginStatus();
+  }
+});

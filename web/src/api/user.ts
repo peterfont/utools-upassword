@@ -20,3 +20,11 @@ export const register = (data: LoginData) => {
     params: data
   })
 }
+
+// 获取用户信息
+export const getUserInfo = () => {
+  return request({
+    url: '/api/user/info',
+    method: 'get'
+  })
+}

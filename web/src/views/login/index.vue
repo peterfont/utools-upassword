@@ -78,13 +78,21 @@ const handleLogin = async () => {
   if (!loginFormRef.value) return
   
   try {
-    // 校验表单
     await loginFormRef.value.validate()
     
     loading.value = true
     const response = await login(loginForm)
     const token = response.data.token
     localStorage.setItem('token', token)
+
+    // 通知插件登录成功
+    if (chrome?.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ 
+        type: 'LOGIN_SUCCESS',
+        data: response.data 
+      });
+    }
+
     router.push('/')
   } catch (error: any) {
     if (error.message) {

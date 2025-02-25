@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
-    <title>Login Info</title>
+    <title>密码管理器</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         body {
@@ -26,17 +26,18 @@
         }
 
         button {
-            background-color: #007BFF;
+            background: #409eff;
             color: white;
-            padding: 5px 10px;
+            padding: 8px 16px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
             margin-top: 10px;
+            transition: background-color 0.3s;
         }
 
-        #copyButton {
-            margin-top: 1px;
+        button:hover {
+            background: #66b1ff;
         }
 
         ul {
@@ -137,33 +138,144 @@
             background-color: #0056b3;
         }
 
+        .container {
+            width: 300px;
+            padding: 20px;
+        }
+        
+        .not-logged-in {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f5f7fa;
+            border-radius: 4px;
+        }
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #e4e7ed;
+        }
+        
+        .menu {
+            border: 1px solid #ebeef5;
+            border-radius: 4px;
+        }
+        
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            border-bottom: 1px solid #ebeef5;
+        }
+        
+        .menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .menu-item:hover {
+            background-color: #f5f7fa;
+        }
+        
+        .icon {
+            margin-right: 8px;
+            font-size: 16px;
+        }
+
+        /* 密码强度设置部分 */
+        .settings-section {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f7fa;
+            border-radius: 4px;
+        }
+
+        .setting-item {
+            margin-bottom: 10px;
+        }
+
+        .setting-item label {
+            display: inline-block;
+            width: 120px;
+        }
+
+        .setting-item input {
+            width: 60px;
+            padding: 4px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+        }
+
     </style>
 </head>
 
 <body>
-    <h1>Login Information</h1>
-    <p id="username"></p>
-    <p id="password">
-        <span id="maskedPassword"></span>
-        <button id="showHidePassword" class="show-hide">显示</button>
-    </p>
-    <h2>密码强度标准设置</h2>
-    <div class="settings-group">
-        <label for="minLengthInput">最小长度：</label><input type="number" id="minLengthInput" /><br>
-        <label for="maxLengthInput">最大长度：</label><input type="number" id="maxLengthInput" /><br>
-        <label for="minDigitsInput">最少数字个数：</label><input type="number" id="minDigitsInput" /><br>
-        <label for="minSpecialCharsInput">最少特殊字符个数：</label><input type="number" id="minSpecialCharsInput" /><br>
-        <label for="minUpperCaseLettersInput">最少大写字母个数：</label><input type="number" id="minUpperCaseLettersInput" /><br>
-        <label for="minLowerCaseLettersInput">最少小写字母个数：</label><input type="number" id="minLowerCaseLettersInput" /><br>
+    <div class="container">
+        <!-- 未登录状态 -->
+        <div id="notLoggedIn" class="not-logged-in">
+            <p>您还未登录，请先登录</p>
+            <button id="goToLogin">去登录</button>
+        </div>
+        
+        <!-- 已登录状态 -->
+        <div id="loggedIn" style="display: none;">
+            <div class="user-info">
+                <img class="avatar" src="./images/default-avatar.png" alt="avatar">
+                <span id="username"></span>
+            </div>
+            
+            <div class="menu">
+                <div class="menu-item" id="goToSettings">
+                    <i class="icon">⚙️</i>
+                    <span>密码规则设置</span>
+                </div>
+                <div class="menu-item" id="goToAccounts">
+                    <i class="icon">📋</i>
+                    <span>账户管理</span>
+                </div>
+            </div>
+
+            <!-- 密码强度设置部分 -->
+            <div id="settingsSection" class="settings-section">
+                <div class="setting-item">
+                    <label>密码最小长度：</label>
+                    <input type="number" id="minLengthInput" min="6" max="32">
+                </div>
+                <div class="setting-item">
+                    <label>密码最大长度：</label>
+                    <input type="number" id="maxLengthInput" min="8" max="32">
+                </div>
+                <div class="setting-item">
+                    <label>最少数字个数：</label>
+                    <input type="number" id="minDigitsInput" min="0" max="10">
+                </div>
+                <div class="setting-item">
+                    <label>最少特殊字符：</label>
+                    <input type="number" id="minSpecialCharsInput" min="0" max="10">
+                </div>
+                <div class="setting-item">
+                    <label>最少大写字母：</label>
+                    <input type="number" id="minUpperCaseLettersInput" min="0" max="10">
+                </div>
+                <div class="setting-item">
+                    <label>最少小写字母：</label>
+                    <input type="number" id="minLowerCaseLettersInput" min="0" max="10">
+                </div>
+                <button id="saveSettings">保存设置</button>
+            </div>
+        </div>
     </div>
-    <button id="saveSettingsButton">保存设置</button>
-    <button id="generatePasswordButton">生成合格密码</button>
-    <div id="generatedPasswordContainer">
-        <input type="text" id="generatedPassword" readonly />
-        <button id="copyButton">复制</button>
-    </div>
-    <button id="viewRecordsButton">查看记录</button>
-    <ul id="recordList" style="display:none;"></ul>
     <script src="popup.js"></script>
 </body>
 
