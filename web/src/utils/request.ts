@@ -2,8 +2,20 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import qs from 'qs'
 
+// 定义接口返回格式
+interface ApiResponse<T = any> {
+  code: string
+  msg: string
+  data: T
+  version: string
+  timestamp: number | null
+  sign: string | null
+  success: boolean
+  fail: boolean
+}
+
 const request = axios.create({
-  timeout: 5000,
+    timeout: 5000,
   headers: {
     'Content-Type': 'application/x-www-form-urlencoded' // 设置表单格式
   }
@@ -30,10 +42,22 @@ request.interceptors.request.use(
 )
 
 request.interceptors.response.use(
-  response => response.data,
+  response => {
+    const res = response.data as ApiResponse
+    
+    // 判断业务状态码
+    if (res.success && res.code === '00000') {
+      return response
+    }
+    
+    // 业务失败
+    // ElMessage.error(res.msg || '操作失败')
+    return Promise.reject(new Error(res.msg || '操作失败'))
+  },
   error => {
-    ElMessage.error(error.response?.data?.message || '请求失败')
-    return Promise.reject(error)  
+    // 网络错误等
+    ElMessage.error(error.response?.data?.msg || '请求失败')
+    return Promise.reject(error)
   }
 )
 

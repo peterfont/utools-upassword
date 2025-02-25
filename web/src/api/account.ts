@@ -1,34 +1,59 @@
 import request from '@/utils/request'
-import type { AccountRecord } from '@/types/account'
+import type { DataRecord, ServerResponse, PageResponse } from '@/types/account'
 
-export const getAccountList = () => {
-  return request<AccountRecord[]>({
+interface QueryParams {
+  page?: number
+  size?: number
+  username?: string
+  url?: string
+}
+
+// 获取账户列表
+export const getAccountList = (params: QueryParams = {}) => {
+  return request<ServerResponse<PageResponse<DataRecord>>>({
     url: '/api/data',
     method: 'get',
-    data: { userId: localStorage.getItem('userId') }
+    params: {
+      page: params.page || 0,
+      size: params.size || 10,
+      username: params.username,
+      url: params.url
+    }
   })
 }
 
-export const addAccount = (data: AccountRecord) => {
-  return request<AccountRecord>({
+// 添加账户
+export const addAccount = (data: DataRecord) => {
+  return request<ServerResponse<DataRecord>>({
     url: '/api/data',
     method: 'post',
-    data: { dataRecord: data }
+    data
   })
 }
 
-export const updateAccount = (data: AccountRecord) => {
-  return request<AccountRecord>({
+// 更新账户
+export const updateAccount = (data: DataRecord) => {
+  return request<ServerResponse<DataRecord>>({
     url: '/api/data/',
-    method: 'put',
-    data: { dataRecord: data }
+    method: 'put', 
+    data
   })
 }
 
-export const deleteAccount = (id: number | string) => {
-  return request({
-    url: '/api/data/',
-    method: 'delete',
-    data: { id }
+// 删除账户
+export const deleteAccount = (id: number) => {
+  return request<ServerResponse<string>>({
+    url: `/api/data/${id}`,
+    method: 'delete'
   })
+}
+
+const loadData = async () => {
+  try {
+    loading.value = true
+    const res = await getAccountList()
+    accountList.value = res.data.content
+  } finally {
+    loading.value = false
+  }
 }
