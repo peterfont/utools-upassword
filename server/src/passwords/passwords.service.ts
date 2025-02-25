@@ -13,16 +13,19 @@ export class PasswordsService {
   async findAll(
     page: number,
     size: number,
+    req: any,
     username?: string,
     url?: string,
   ): Promise<[Password[], number]> {
     const where: any = {};
     if (username) {
-      where.username = Like(`%${username}%`);
+      where.username = Like(`%${username.trim()}%`);
     }
-    if (url) {
-      where.url = Like(`%${url}%`);
+    if (url && typeof url === 'string') {
+      where.url = Like(`%${url.trim()}%`);
     }
+    // 添加用户ID条件
+    where.userId = req.user.id;
 
     return await this.passwordRepository.findAndCount({
       where,

@@ -1,19 +1,22 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { Password } from './entities/password.entity';
 import { PasswordsService } from './passwords.service';
 
 @ApiTags('passwords')
-@Controller('data')
+@ApiBearerAuth()
+@UseGuards(AuthGuard('jwt'))
+@Controller('api/data')
 export class PasswordsController {
   constructor(private readonly passwordsService: PasswordsService) {}
 
   @Get()
   @ApiOperation({ summary: '获取密码列表' })
   @ApiResponse({ status: 200, description: '成功获取密码列表' })
-  async findAll(@Query() query: { page?: number; size?: number; username?: string; url?: string }) {
+  async findAll(@Query() query: { page?: number; size?: number; username?: string; url?: string }, @Request() req) {
     const { page = 0, size = 10, username, url } = query;
-    const [items, total] = await this.passwordsService.findAll(page, size, username, url);
+    const [items, total] = await this.passwordsService.findAll(page, size, req, username, url);
     
     return {
       code: '200',
@@ -37,8 +40,13 @@ export class PasswordsController {
   @Post()
   @ApiOperation({ summary: '创建密码记录' })
   @ApiResponse({ status: 201, description: '成功创建密码记录' })
-  async create(@Body() createPasswordDto: Partial<Password>) {
-    const result = await this.passwordsService.create(createPasswordDto);
+  async create(@Body() createPasswordDto: Partial<Password>, @Request() req) {
+    // 创建新记录时移除id字段并添加用户ID
+    const { id, ...passwordData } = createPasswordDto;
+    const result = await this.passwordsService.create({
+      ...passwordData,
+      userId: req.user.id
+    });
     return {
       code: '200',
       msg: '创建成功',
