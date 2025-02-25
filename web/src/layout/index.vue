@@ -18,14 +18,16 @@
         </div>
         
         <div class="header-right">
-          <el-dropdown @command="handleCommand">
+          <el-dropdown @command="handleCommand" @visible-change="handleDropdownVisibleChange">
             <span class="el-dropdown-link">
               <el-avatar 
                 :size="32" 
                 src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png"
               />
               <span class="username">{{ username }}</span>
-              <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              <el-icon class="dropdown-icon" :class="{ 'is-rotate': dropdownVisible }">
+                <arrow-down />
+              </el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
@@ -120,6 +122,14 @@ const handleCommand = async (command: string) => {
       }
       break
   }
+}
+
+// 添加下拉菜单状态控制
+const dropdownVisible = ref(false)
+
+// 处理下拉菜单显示状态变化
+const handleDropdownVisibleChange = (visible: boolean) => {
+  dropdownVisible.value = visible
 }
 </script>
 
@@ -266,5 +276,15 @@ const handleCommand = async (command: string) => {
 
 :deep(.el-menu-item) {
   transition: padding 0.3s;
+}
+
+/* 添加箭头动画相关样式 */
+.dropdown-icon {
+  transition: transform 0.3s ease;
+  margin-left: 4px;
+}
+
+.dropdown-icon.is-rotate {
+  transform: rotate(180deg);
 }
 </style>
