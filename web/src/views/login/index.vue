@@ -101,3 +101,43 @@ const handleRegister = async () => {
   }
 }
 </script>
+
+<style scoped>
+.login-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f5f5;
+}
+
+.login-card {
+  width: 400px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+:deep(.el-tabs__header) {
+  margin-bottom: 24px;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.el-button) {
+  width: 100%;
+  margin-top: 10px;
+}
+
+:deep(.el-tabs__nav) {
+  width: 100%;
+  display: flex;
+}
+
+:deep(.el-tabs__item) {
+  flex: 1;
+  text-align: center;
+}
+</style>
