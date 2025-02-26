@@ -2,6 +2,7 @@
 import { onMessage } from 'webext-bridge/content-script'
 import { createApp } from 'vue'
 import App from './views/App.vue'
+import { init } from './inject'
 import { setupApp } from '~/logic/common-setup'
 
 // Firefox `browser.tabs.executeScript()` requires scripts return a primitive value
@@ -13,7 +14,14 @@ import { setupApp } from '~/logic/common-setup'
     console.log(`[vitesse-webext] Navigate from page "${data.title}"`)
   })
 
-  // mount component to context window
+  // 插入脚本
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init)
+  }
+  else {
+    init()
+  }
+  // 插入dom
   const container = document.createElement('div')
   container.id = __NAME__
   const root = document.createElement('div')
