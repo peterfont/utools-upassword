@@ -124,7 +124,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { AccountRecord } from '@/types/account'
+import type { AccountRecord, ServerResponse, PageResponse } from '@/types/account'
 import type { FormInstance } from 'element-plus'
 import { format } from 'date-fns'
 import { getAccountList, addAccount, updateAccount, deleteAccount } from '@/api/account'
@@ -142,11 +142,8 @@ const dialogVisible = ref(false)
 const dialogType = ref<'add' | 'edit'>('add')
 const accountList = ref<AccountRecord[]>([])
 
-interface FormData {
-  id: string | number
-  username: string
-  password: string
-  url: string
+interface FormData extends Omit<AccountRecord, 'id' | 'userId' | 'timestamp'> {
+  id: number | string
 }
 
 const form = ref<FormData>({
@@ -258,10 +255,15 @@ const handleSubmit = async () => {
     if (dialogType.value === 'add') {
       await addAccount({
         ...form.value,
-        userId: Number(localStorage.getItem('userId'))
-      })
+        id: 0, // 新增时 id 设为 0
+        userId: Number(localStorage.getItem('userId') || '0')
+      } as AccountRecord)
     } else {
-      await updateAccount(form.value)
+      await updateAccount({
+        ...form.value,
+        id: Number(form.value.id),
+        userId: Number(localStorage.getItem('userId') || '0')
+      } as AccountRecord)
     }
     
     dialogVisible.value = false
@@ -366,7 +368,6 @@ const handleDialogClose = () => {
 :deep(.el-table .cell) {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 12px;
 }
 

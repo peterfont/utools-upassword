@@ -8,27 +8,29 @@ export interface DataRecord {
   timestamp?: string
 }
 
-// 定义服务器响应类型
-export interface ServerResponse<T> {
-  code: string
-  msg: string
-  data: T
-  version?: string
-  timestamp?: number
-  sign?: string
-  success: boolean
-  fail: boolean
+// 定义接口类型
+export interface AccountRecord {
+  id: number
+  username: string
+  password: string
+  url: string
+  userId: number
+  timestamp?: string
+  showPassword?: boolean
 }
 
-// 定义分页响应类型
+// 服务器响应类型
+export interface ServerResponse<T> {
+  code: number
+  message: string
+  data: T
+}
+
+// 分页响应类型
 export interface PageResponse<T> {
-  totalPages: number
-  totalElements: number
-  size: number
   content: T[]
+  totalElements: number
+  totalPages: number
+  size: number
   number: number
-  numberOfElements: number
-  first: boolean
-  last: boolean
-  empty: boolean
 }
