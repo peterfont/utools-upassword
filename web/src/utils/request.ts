@@ -1,15 +1,15 @@
-import axios, { AxiosRequestConfig } from 'axios'
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
 import qs from 'qs'
 
-// 定义接口返回格式
+// 修改接口返回格式定义
 interface ApiResponse<T = any> {
-  code: string
+  code: string | number
   msg: string | null
   data: T
-  version: string
-  timestamp: number | null
-  sign: string | null
+  version?: string
+  timestamp?: number | null
+  sign?: string | null
   success: boolean
   fail: boolean
 }
@@ -21,37 +21,37 @@ declare module 'axios' {
   }
 }
 
-// 定义请求配置接口
-interface RequestConfig {
-  contentType?: 'json' | 'form' | 'multipart'
-  // ...其他配置
-}
-
 const contentTypeMap = {
   json: 'application/json',
   form: 'application/x-www-form-urlencoded',
   multipart: 'multipart/form-data'
-}
+} as const
 
 const request = axios.create({
   timeout: 5000,
   headers: {
-    'Content-Type': contentTypeMap.form  // 默认使用 form 格式
+    'Content-Type': contentTypeMap.form
   }
 })
 
+// 修改请求拦截器
 request.interceptors.request.use(
-  config => {
+  (config: AxiosRequestConfig) => {
     const token = localStorage.getItem('token')
     if (token) {
-      config.headers.Authorization = token
+      config.headers = {
+        ...config.headers,
+        Authorization: token
+      }
     }
 
-    // 根据 contentType 处理请求数据
-    const contentType = (config as any).contentType || 'form'
-    config.headers['Content-Type'] = contentTypeMap[contentType]
+    const contentType = (config as AxiosRequestConfig & { contentType?: keyof typeof contentTypeMap }).contentType || 'form'
+    
+    if (config.headers) {
+      config.headers['Content-Type'] = contentTypeMap[contentType]
+    }
 
-    if (config.method === 'post' || config.method === 'put') {
+    if (config.method?.toLowerCase() === 'post' || config.method?.toLowerCase() === 'put') {
       switch (contentType) {
         case 'json':
           config.data = config.params || config.data
@@ -72,24 +72,23 @@ request.interceptors.request.use(
   error => Promise.reject(error)
 )
 
+// 修改响应拦截器
 request.interceptors.response.use(
-  response => {
-    // response.data 才是真正的接口返回内容
-    const res = response.data as ApiResponse
+  (response: AxiosResponse<ApiResponse>) => {
+    const res = response.data
     
-    // 判断业务状态码
-    if (res.success && res.code === '00000') {
-      // 直接返回 data 数据
+    // 使用 === 进行严格比较，同时处理 string 和 number 类型
+    if (res.success && (res.code === '00000' || res.code === 0)) {
       return res
     }
     
-    // 业务失败
-    ElMessage.error(res.msg || '操作失败')
-    return Promise.reject(new Error(res.msg || '操作失败'))
+    const errorMsg = res.msg || '操作失败'
+    ElMessage.error(errorMsg)
+    return Promise.reject(new Error(errorMsg))
   },
   error => {
-    // 网络错误等
-    ElMessage.error(error.response?.data?.msg || '请求失败')
+    const errorMsg = error.response?.data?.msg || '请求失败'
+    ElMessage.error(errorMsg)
     return Promise.reject(error)
   }
 )
