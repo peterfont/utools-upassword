@@ -192,3 +192,39 @@ function notifyRecordsUpdate(recordCount: number): void {
   // 使用 webext-bridge 发送消息
   sendMessage('UPDATE_RECORDS', { recordCount }, { context: 'popup' })
 }
+
+// 处理保存密码规则
+onMessage('save-password-rules', async ({ data }) => {
+  try {
+    await browser.storage.sync.set({ passwordRules: data.passwordRules })
+    return { success: true }
+  }
+  catch (error) {
+    console.error('保存密码规则失败:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
+// 处理获取密码规则
+onMessage('get-password-rules', async () => {
+  try {
+    const result = await browser.storage.sync.get('passwordRules')
+    return {
+      passwordRules: result.passwordRules || {
+        minLength: 8,
+        maxLength: 20,
+        minDigits: 1,
+        minSpecialChars: 1,
+        minUpperCaseLetters: 1,
+        minLowerCaseLetters: 1,
+      },
+    }
+  }
+  catch (error) {
+    console.error('获取密码规则失败:', error)
+    return {
+      passwordRules: null,
+      error: String(error),
+    }
+  }
+})
