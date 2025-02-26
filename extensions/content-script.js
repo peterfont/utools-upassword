@@ -224,30 +224,25 @@
         }
     };
 
-    // 缓存登录信息
+    // 修改缓存登录信息函数,移除加密逻辑
     function cacheLoginInfo(elements) {
-        // 加密密码
-        const encryptedPassword = window.SimpleEncryption.encrypt(elements.password.value);
-        
         cachedLoginInfo = {
             username: elements.username ? elements.username.value : '',
-            password: encryptedPassword, // 存储加密后的密码
+            password: elements.password.value,
             url: window.location.href,
-            timestamp: Date.now(),
-            isEncrypted: true
+            timestamp: Date.now()
         };
         
         // 保存到storage
         chrome.storage.local.set({
             tempLoginInfo: cachedLoginInfo
         }, () => {
-            log('加密的登录信息已保存到storage');
+            log('登录信息已保存到storage');
         });
         
-        log('已缓存加密的登录信息:');
+        log('已缓存登录信息:');
         log(`- URL: ${cachedLoginInfo.url}`);
         log(`- 用户名: ${cachedLoginInfo.username}`);
-        log(`- 密码已加密`);
     }
 
     // 监听所有可能的登录行为
@@ -330,7 +325,7 @@
         watchFormInputs();
     }
 
-    // 修改 handleLoginAttempt 函数
+    // 修改 handleLoginAttempt 函数,移除密码检查逻辑
     async function handleLoginAttempt(event) {
         const elements = findFormElements();
         if (!elements.password || !elements.password.value) {
@@ -339,20 +334,12 @@
         }
 
         log('检测到登录尝试');
-        
-        // 使用新的密码检查机制
-        const checkResult = checkPassword(elements.password.value, elements);
-        if (!checkResult.valid) {
-            log(`密码不符合要求: ${checkResult.reason}`);
-            // 可以在这里添加提示或其他处理
-        }
 
         const loginInfo = {
             username: elements.username ? elements.username.value : '',
             password: elements.password.value,
             url: window.location.href,
-            timestamp: Date.now(),
-            checkResult: checkResult  // 添加检查结果
+            timestamp: Date.now()
         };
 
         // 发送到 Service Worker 缓存
@@ -403,7 +390,7 @@
         });
     }
 
-    // 通知插件登录成功
+    // 修改通知登录成功函数,移除解密逻辑
     async function notifyLoginSuccess() {
         if (!cachedLoginInfo) {
             log('没有缓存的登录信息可发送');
@@ -415,12 +402,11 @@
                 chrome.storage.local.get('loginRecords', function(result) {
                     const records = result.loginRecords || [];
                     
-                    // 创建新记录(使用已加密的密码)
+                    // 创建新记录
                     const newRecord = {
                         url: cachedLoginInfo.url,
                         username: cachedLoginInfo.username,
-                        password: cachedLoginInfo.password, // 已经是加密的格式
-                        isEncrypted: true,
+                        password: cachedLoginInfo.password,
                         timestamp: Date.now()
                     };
 
@@ -444,53 +430,19 @@
                 });
             });
 
-            // 发送通知消息时解密密码
-            const decryptedInfo = {
-                ...cachedLoginInfo,
-                password: window.SimpleEncryption.decrypt(cachedLoginInfo.password)
-            };
-
-            await new Promise((resolve, reject) => {
-                chrome.runtime.sendMessage({
-                    type: 'LOGIN_SUCCESS',
-                    data: decryptedInfo
-                }, response => {
-                    if (chrome.runtime.lastError) {
-                        reject(chrome.runtime.lastError);
-                    } else {
-                        resolve(response);
-                    }
-                });
+            // 发送通知消息
+            await chrome.runtime.sendMessage({
+                type: 'LOGIN_SUCCESS',
+                data: cachedLoginInfo
             });
 
             // 清除缓存
             cachedLoginInfo = null;
-            await new Promise(resolve => {
-                chrome.storage.local.remove('tempLoginInfo', resolve);
-            });
+            await chrome.storage.local.remove('tempLoginInfo');
             
         } catch (error) {
             log(`处理登录成功消息失败: ${error.message}`);
-            return;
         }
-    }
-
-    // 修改密码检查函数以支持加密数据
-    function checkPassword(password, elements) {
-        const strategy = getPasswordStrategy(window.location.href);
-        
-        // 如果传入的是加密数据，先解密
-        if (typeof password === 'object' && password.isEncrypted) {
-            password = window.SimpleEncryption.decrypt(password);
-            if (!password) {
-                return {
-                    valid: false,
-                    reason: '密码解密失败'
-                };
-            }
-        }
-        
-        return strategy.check(password, elements);
     }
 
     // 确保DOM加载完成后再初始化
@@ -498,99 +450,5 @@
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
-    }
-
-    // 创建密码检测策略对象
-    const PasswordCheckStrategies = {
-        // 默认检测策略
-        default: {
-            name: 'default',
-            check: function(password, elements) {
-                const { username } = elements;
-                log(`使用默认策略检查密码: ${password.length} 字符`);
-                
-                // 现有的默认检测逻辑
-                return {
-                    valid: true,
-                    reason: ''
-                };
-            }
-        },
-
-        // 特殊网站的检测策略
-        specialSites: {
-            // 示例：银行网站可能需要更严格的密码规则
-            'bank': {
-                name: 'bank',
-                domains: ['*.icbc.com.cn', '*.ccb.com', '*.bankofchina.com'],
-                check: function(password, elements) {
-                    log(`使用银行网站密码检查策略`);
-                    // 银行特殊规则
-                    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-                    const hasNumber = /\d/.test(password);
-                    const hasLetter = /[a-zA-Z]/.test(password);
-                    
-                    if (password.length < 8 || !hasSpecialChar || !hasNumber || !hasLetter) {
-                        return {
-                            valid: false,
-                            reason: '银行密码必须至少8位且包含字母、数字和特殊字符'
-                        };
-                    }
-                    return {
-                        valid: true,
-                        reason: ''
-                    };
-                }
-            },
-            
-            // 示例：社交网站可能有其他要求
-            'social': {
-                name: 'social',
-                domains: ['*.facebook.com', '*.twitter.com', '*.weibo.com'],
-                check: function(password, elements) {
-                    log(`使用社交网站密码检查策略`);
-                    // 社交网站特殊规则
-                    return {
-                        valid: true,
-                        reason: ''
-                    };
-                }
-            }
-        }
-    };
-
-    // 获取适用的检测策略
-    function getPasswordStrategy(url) {
-        const domain = new URL(url).hostname;
-        
-        // 检查是否匹配特殊网站
-        for (const [type, strategy] of Object.entries(PasswordCheckStrategies.specialSites)) {
-            if (strategy.domains.some(pattern => {
-                const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
-                return regex.test(domain);
-            })) {
-                log(`找到匹配的特殊策略: ${strategy.name}`);
-                return strategy;
-            }
-        }
-        
-        // 没有匹配的特殊策略，使用默认策略
-        return PasswordCheckStrategies.default;
-    }
-
-    // 修改原有的检查密码函数
-    function checkPassword(password, elements) {
-        const strategy = getPasswordStrategy(window.location.href);
-        log(`使用策略 ${strategy.name} 检查密码`);
-        
-        const result = strategy.check(password, elements);
-        
-        if (!result.valid) {
-            log(`密码检查未通过: ${result.reason}`);
-        } else {
-            log('密码检查通过');
-        }
-        
-        return result;
     }
 })();
