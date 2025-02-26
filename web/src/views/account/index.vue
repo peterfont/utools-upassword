@@ -38,7 +38,20 @@
     >
       <el-table-column prop="url" label="网址" show-overflow-tooltip />
       <el-table-column prop="username" label="用户名" />
-      <el-table-column prop="password" label="密码" show-overflow-tooltip />
+      <el-table-column prop="password" label="密码" min-width="120">
+        <template #default="{ row }">
+          <div class="password-cell">
+            <span>{{ row.showPassword ? row.password : getPasswordDisplay(row.password) }}</span>
+            <el-icon 
+              class="password-eye"
+              @click="togglePasswordVisible(row)"
+            >
+              <View v-if="row.showPassword"/>
+              <Hide v-else/>
+            </el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="timestamp" label="创建时间" width="160">
         <template #default="{ row }">
           {{ formatTime(row.timestamp) }}
@@ -77,13 +90,27 @@
     >
       <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
         <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" />
+          <el-input v-model="form.username" placeholder="请输入用户名" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" />
+          <el-input 
+            v-model="form.password" 
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="请输入密码"
+          >
+            <template #suffix>
+              <el-icon 
+                class="password-eye"
+                @click="showPassword = !showPassword"
+              >
+                <View v-if="showPassword"/>
+                <Hide v-else/>
+              </el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         <el-form-item label="网址" prop="url">
-          <el-input v-model="form.url" />
+          <el-input v-model="form.url" placeholder="请输入网址" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -101,6 +128,7 @@ import type { AccountRecord } from '@/types/account'
 import type { FormInstance } from 'element-plus'
 import { format } from 'date-fns'
 import { getAccountList, addAccount, updateAccount, deleteAccount } from '@/api/account'
+import { View, Hide } from '@element-plus/icons-vue'
 
 // 分页参数
 const page = ref({
@@ -167,6 +195,7 @@ const loadData = async () => {
     // 正确处理分页数据
     accountList.value = response.data.content
     page.value.total = response.data.totalElements
+    resetPasswordDisplay() // 重置密码显示状态
   } finally {
     loading.value = false
   }
@@ -246,6 +275,38 @@ const handleSubmit = async () => {
     }
   }
 }
+
+// 添加密码显示控制变量
+const showPassword = ref(false)
+
+// 获取密码显示内容
+const getPasswordDisplay = (password: string) => {
+  return password ? '•'.repeat(password.length) : ''
+}
+
+// 切换表格中密码的显示/隐藏
+const togglePasswordVisible = (row: AccountRecord & { showPassword?: boolean }) => {
+  if (!row.showPassword) {
+    // 先隐藏其他显示的密码
+    accountList.value.forEach(item => {
+      if (item.id !== row.id) {
+        item.showPassword = false
+      }
+    })
+  }
+  row.showPassword = !row.showPassword
+}
+
+// 对话框关闭和表格数据加载时重置密码显示状态
+const resetPasswordDisplay = () => {
+  accountList.value.forEach(item => {
+    item.showPassword = false
+  })
+}
+
+const handleDialogClose = () => {
+  showPassword.value = false
+}
 </script>
 
 <style scoped>
@@ -287,6 +348,41 @@ const handleSubmit = async () => {
 :deep(.el-form-item__label) {
   color: #606266;
   font-weight: normal;
+}
+
+/* 添加密码图标样式 */
+.password-eye {
+  cursor: pointer;
+  margin-left: 8px;
+  color: #909399;
+  transition: color 0.3s;
+}
+
+.password-eye:hover {
+  color: #409EFF;
+}
+
+/* 修改密码列样式 */
+:deep(.el-table .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+/* 添加密码单元格样式 */
+.password-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.password-cell span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 </style>
