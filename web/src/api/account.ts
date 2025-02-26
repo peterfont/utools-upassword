@@ -11,7 +11,7 @@ interface QueryParams {
 // 获取账户列表
 export const getAccountList = (params: QueryParams = {}) => {
   return request<ServerResponse<PageResponse<DataRecord>>>({
-    url: '/api/data',
+    url: '/api/data/page',
     method: 'get',
     params: {
       page: params.page || 0,
@@ -27,6 +27,7 @@ export const addAccount = (data: DataRecord) => {
   return request<ServerResponse<DataRecord>>({
     url: '/api/data',
     method: 'post',
+    contentType: 'json',
     data
   })
 }
@@ -35,7 +36,8 @@ export const addAccount = (data: DataRecord) => {
 export const updateAccount = (data: DataRecord) => {
   return request<ServerResponse<DataRecord>>({
     url: '/api/data/',
-    method: 'put', 
+    method: 'put',
+    contentType: 'json',
     data
   })
 }
@@ -46,14 +48,4 @@ export const deleteAccount = (id: number) => {
     url: `/api/data/${id}`,
     method: 'delete'
   })
-}
-
-const loadData = async () => {
-  try {
-    loading.value = true
-    const res = await getAccountList()
-    accountList.value = res.data.content
-  } finally {
-    loading.value = false
-  }
 }

@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { ServerResponse } from '@/types/account'
 
 // 定义响应类型
 interface ServerResponseEntityString {
@@ -12,17 +13,18 @@ interface ServerResponseEntityString {
   fail: boolean
 }
 
-// 登录/注册参数类型
+// 登录参数接口
 export interface LoginData {
   username: string
   password: string
 }
 
-// 登录
+// 登录接口
 export const login = (data: LoginData) => {
-  return request<ServerResponseEntityString>({
+  return request<ServerResponse<string>>({
     url: '/auth/login',
     method: 'post',
+    contentType: 'form',
     params: data
   })
 }

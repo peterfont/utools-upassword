@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import qs from 'qs'
 
@@ -14,10 +14,29 @@ interface ApiResponse<T = any> {
   fail: boolean
 }
 
+// 扩展 AxiosRequestConfig 类型
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    contentType?: 'json' | 'form' | 'multipart'
+  }
+}
+
+// 定义请求配置接口
+interface RequestConfig {
+  contentType?: 'json' | 'form' | 'multipart'
+  // ...其他配置
+}
+
+const contentTypeMap = {
+  json: 'application/json',
+  form: 'application/x-www-form-urlencoded',
+  multipart: 'multipart/form-data'
+}
+
 const request = axios.create({
   timeout: 5000,
   headers: {
-    'Content-Type': 'application/x-www-form-urlencoded'
+    'Content-Type': contentTypeMap.form  // 默认使用 form 格式
   }
 })
 
@@ -28,11 +47,24 @@ request.interceptors.request.use(
       config.headers.Authorization = token
     }
 
-    // 将请求参数转换为表单格式
+    // 根据 contentType 处理请求数据
+    const contentType = (config as any).contentType || 'form'
+    config.headers['Content-Type'] = contentTypeMap[contentType]
+
     if (config.method === 'post' || config.method === 'put') {
-      config.data = qs.stringify(config.params || config.data)
-      // 清空 params,避免参数重复
-      config.params = undefined 
+      switch (contentType) {
+        case 'json':
+          config.data = config.params || config.data
+          config.params = undefined
+          break
+        case 'form':
+          config.data = qs.stringify(config.params || config.data)
+          config.params = undefined
+          break
+        case 'multipart':
+          // FormData 不需要特殊处理
+          break
+      }
     }
 
     return config

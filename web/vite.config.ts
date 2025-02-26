@@ -15,7 +15,6 @@ export default defineConfig({
       '/api': {
         target: 'http://47.93.6.36:8181', // API服务器地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '') // 去掉请求路径中的 /api 前缀
       },
       '/auth': {
         target: 'http://47.93.6.36:8181',
