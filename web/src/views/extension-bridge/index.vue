@@ -248,6 +248,7 @@ function handleExtensionMessage(event) {
       break
       
     case 'SYNC_PASSWORDS':
+      console.log('开始同步密码:', event.data.data)
       if (event.data.data && event.data.data.passwords) {
         handlePasswordSync(event.data.data.passwords)
       } else {
