@@ -16,6 +16,7 @@ import { onMounted, ref, onUnmounted } from 'vue'
 import axios from 'axios'
 // 导入API接口函数
 import { getAccountList, addAccount, updateAccount } from '@/api/account'
+import { logout } from '@/api/user' // 导入logout函数
 import type { DataRecord } from '@/types/account'
 
 const userInfo = ref(null)
@@ -55,6 +56,7 @@ function clearLoginInfo() {
   userInfo.value = null
   localStorage.removeItem('token')
   localStorage.removeItem('userInfo')
+  localStorage.removeItem('userId')
   window.parent.postMessage({
     type: 'USER_INFO',
     data: null
@@ -66,10 +68,8 @@ async function handleLogout() {
   try {
     if (userInfo.value) {
       try {
-        const token = localStorage.getItem('token')
-        await axios.post('/api/auth/logout', {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        // 使用user.ts中的logout函数替代直接的axios请求
+        await logout()
       } catch (apiError) {
         console.warn('API登出失败，但会继续本地登出', apiError)
       }
