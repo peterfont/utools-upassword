@@ -21,9 +21,9 @@ export interface AppConfig {
 
 // 默认配置
 export const defaultConfig: AppConfig = {
-  serverUrl: 'https://api.password-manager.example.com',
-  loginUrl: 'https://account.password-manager.example.com/login',
-  passwordManagerUrl: 'https://account.password-manager.example.com/manager',
+  serverUrl: 'http://localhost:3000',
+  loginUrl: 'http://localhost:3000/account',
+  passwordManagerUrl: 'http://localhost:3000/login',
 
   // 使用全局注入的变量
   appName: __DISPLAY_NAME__ || '密码安全助手',
