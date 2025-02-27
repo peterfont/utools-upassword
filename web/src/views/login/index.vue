@@ -86,23 +86,9 @@ const handleLogin = async () => {
     const token = response.data
     // 存储token到localStorage
     localStorage.setItem('token', token)
-    
     // 获取用户信息并存储到localStorage
     const userInfoResponse = await getUserInfo()
     localStorage.setItem('userInfo', JSON.stringify(userInfoResponse.data))
-
-    // 通知插件登录成功
-    if (chrome?.runtime?.sendMessage) {
-      chrome.runtime.sendMessage({ 
-        type: 'LOGIN_SUCCESS',
-        data: {
-          token: token,
-          userInfo: {
-            username: loginForm.username
-          }
-        }
-      });
-    }
 
     router.push('/')
   } catch (error: any) {

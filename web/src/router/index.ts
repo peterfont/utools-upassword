@@ -11,6 +11,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/extension-bridge',
+    name: 'ExtensionBridge',
+    component: () => import('../views/extension-bridge/index.vue'),
+    meta: {
+      requiresAuth: false
+    }
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/account',
@@ -36,7 +44,7 @@ const router = createRouter({
 })
 
 // 白名单路由（不需要登录即可访问）
-const whiteList = ['/login']
+const whiteList = ['/login', '/extension-bridge']
 
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
