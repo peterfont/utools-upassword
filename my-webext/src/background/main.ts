@@ -32,6 +32,20 @@ let previousTabId = 0
 
 // communication example: send previous tab title from background page
 // see shim.d.ts for type declaration
+// 添加错误处理中间件
+const handleRuntimeError = (error: unknown) => {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const errorMessage = (error as Error).message
+    if (errorMessage.includes('The page keeping the extension port is moved into back/forward cache')) {
+      // 页面进入缓存，这是预期的错误，可以安全忽略
+      return
+    }
+  }
+  // 其他错误则需要记录
+  console.error('消息通信错误:', error)
+}
+
+// 修改消息发送相关的代码，添加错误处理
 browser.tabs.onActivated.addListener(async ({ tabId }) => {
   if (!previousTabId) {
     previousTabId = tabId
@@ -48,9 +62,9 @@ browser.tabs.onActivated.addListener(async ({ tabId }) => {
     return
   }
 
-  // eslint-disable-next-line no-console
-  console.log('previous tab', tab)
+  // 添加错误处理
   sendMessage('tab-prev', { title: tab.title }, { context: 'content-script', tabId })
+    .catch(handleRuntimeError)
 })
 
 onMessage('get-current-tab', async () => {
@@ -274,8 +288,17 @@ async function askNotificationPermission(): Promise<boolean> {
     else {
       // 向用户展示权限被拒绝的后果
       // 可以向其他页面发送消息，显示提醒
-      sendMessage('NOTIFICATION_PERMISSION_DENIED', {}, { context: 'popup' })
-        .catch(() => { /* 忽略错误 */ })
+      // 修改通知发送相关的代码
+      export function notifyRecordsUpdate(recordCount: number): void {
+        sendMessage('UPDATE_RECORDS', { recordCount }, { context: 'popup' })
+          .catch(handleRuntimeError)
+      }
+
+      // 修改权限被拒绝的通知
+      else {
+        sendMessage('NOTIFICATION_PERMISSION_DENIED', {}, { context: 'popup' })
+          .catch(handleRuntimeError)
+      }
 
       return false
     }
