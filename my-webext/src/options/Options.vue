@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { sendMessage } from 'webext-bridge/options'
 import logo from '~/assets/logo.svg'
+import { type AppConfig, defaultConfig, loadConfig, saveConfig } from '~/config'
 
 const messageVisible = ref(false)
 const messageType = ref('')
@@ -58,6 +59,43 @@ async function loadSettings() {
     console.error('加载设置失败:', error)
   }
 }
+
+// 应用配置
+const appConfig = ref({ ...defaultConfig })
+
+// 加载所有设置
+async function loadAllSettings() {
+  try {
+    // 加载密码规则
+    await loadSettings()
+    // 加载应用配置
+    appConfig.value = await loadConfig()
+  }
+  catch (error) {
+    console.error('加载设置失败:', error)
+  }
+}
+
+// 保存所有设置
+async function saveAllSettings() {
+  try {
+    // 保存密码规则
+    await saveSettings()
+
+    // 保存应用配置
+    await saveConfig(appConfig.value)
+
+    showMessage('success', '所有设置保存成功')
+  }
+  catch (error) {
+    console.error('保存设置失败:', error)
+    showMessage('error', '保存设置失败')
+  }
+}
+
+onMounted(async () => {
+  await loadAllSettings()
+})
 
 loadSettings()
 </script>
@@ -140,6 +178,61 @@ loadSettings()
         保存设置
       </button>
     </div>
+
+    <!-- <div class="setting-section">
+      <h2 class="text-lg font-bold mb-4">
+        服务器设置
+      </h2>
+
+      <div class="setting-item mb-3">
+        <label for="server-url">API服务器地址</label>
+        <input
+          id="server-url"
+          v-model="appConfig.serverUrl"
+          type="url"
+          placeholder="https://api.example.com"
+          class="w-full p-2 border rounded"
+        >
+      </div>
+
+      <div class="setting-item mb-3">
+        <label for="login-url">登录页面地址</label>
+        <input
+          id="login-url"
+          v-model="appConfig.loginUrl"
+          type="url"
+          placeholder="https://example.com/login"
+          class="w-full p-2 border rounded"
+        >
+      </div>
+
+      <div class="setting-item mb-3">
+        <label for="manager-url">密码管理页面地址</label>
+        <input
+          id="manager-url"
+          v-model="appConfig.passwordManagerUrl"
+          type="url"
+          placeholder="https://example.com/password-manager"
+          class="w-full p-2 border rounded"
+        >
+      </div>
+
+      <div class="setting-item">
+        <label for="app-name">应用名称</label>
+        <input
+          id="app-name"
+          v-model="appConfig.appName"
+          type="text"
+          placeholder="密码安全助手"
+          class="w-full p-2 border rounded"
+        >
+      </div>
+    </div>
+    <div class="mt-4">
+      <button class="save-button" @click="saveAllSettings">
+        保存所有设置
+      </button>
+    </div> -->
   </main>
 </template>
 

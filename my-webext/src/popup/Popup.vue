@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { sendMessage } from 'webext-bridge/popup'
 import browser from 'webextension-polyfill'
 import { storageDemo } from '~/logic/storage'
+import { type AppConfig, loadConfig } from '~/config'
 
 // 消息提示相关状态
 const messageVisible = ref(false)
@@ -14,6 +15,9 @@ const isLoggedIn = ref(false)
 const username = ref('')
 const passwordCount = ref(0)
 const isSyncing = ref(false)
+
+// 应用配置
+const config = ref<AppConfig | null>(null)
 
 /**
  * 显示消息提示
@@ -28,6 +32,18 @@ function showMessage(type: 'success' | 'warning' | 'error', text: string) {
   setTimeout(() => {
     messageVisible.value = false
   }, 3000)
+}
+
+/**
+ * 初始化应用配置
+ */
+async function initConfig() {
+  try {
+    config.value = await loadConfig()
+  }
+  catch (error) {
+    console.error('初始化配置失败:', error)
+  }
 }
 
 /**
@@ -90,8 +106,13 @@ async function getPasswordCount() {
  */
 async function handleLogin() {
   try {
-    // 打开登录页面
-    await browser.tabs.create({ url: 'https://your-login-server.com/login' })
+    // 使用配置模块中的登录URL
+    if (!config.value)
+      await initConfig()
+
+    await browser.tabs.create({
+      url: config.value?.loginUrl || 'https://account.password-manager.example.com/login',
+    })
     window.close() // 关闭弹窗
   }
   catch (error) {
@@ -149,11 +170,25 @@ async function syncPasswords() {
  * 打开密码管理页面
  */
 function openPasswordManager() {
-  browser.tabs.create({ url: 'https://your-login-server.com/password-manager' })
+  if (!config.value) {
+    initConfig().then(() => {
+      browser.tabs.create({
+        url: config.value?.passwordManagerUrl || 'https://account.password-manager.example.com/manager',
+      })
+    })
+  }
+  else {
+    browser.tabs.create({
+      url: config.value.passwordManagerUrl,
+    })
+  }
 }
 
-// 页面加载时检查登录状态和密码数量
+// 页面加载时初始化
 onMounted(async () => {
+  // 首先加载配置
+  await initConfig()
+  // 然后检查登录状态和密码数量
   await checkLoginStatus()
   await getPasswordCount()
 })
