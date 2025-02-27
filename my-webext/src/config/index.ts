@@ -25,8 +25,9 @@ export const defaultConfig: AppConfig = {
   loginUrl: 'https://account.password-manager.example.com/login',
   passwordManagerUrl: 'https://account.password-manager.example.com/manager',
 
-  appName: '密码安全助手',
-  appVersion: '1.0.0',
+  // 使用全局注入的变量
+  appName: __NAME__ || '密码安全助手',
+  appVersion: __VERSION__ || '1.0.0',
 
   enableAutoSync: false,
   enableNotifications: true,
