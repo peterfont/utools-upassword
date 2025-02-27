@@ -14,6 +14,9 @@
 <script setup lang="ts">
 import { onMounted, ref, onUnmounted } from 'vue'
 import axios from 'axios'
+// 导入API接口函数
+import { getAccountList, addAccount, updateAccount } from '@/api/account'
+import type { DataRecord } from '@/types/account'
 
 const userInfo = ref(null)
 
@@ -25,13 +28,11 @@ function checkLoginStatus() {
   if (token && storedUserInfo) {
     try {
       const parsedUserInfo = JSON.parse(storedUserInfo)
-      // 只保留必要的用户信息字段
       userInfo.value = {
         username: parsedUserInfo.username,
         id: parsedUserInfo.id,
         email: parsedUserInfo.email
       }
-      // 向插件发送用户信息
       window.parent.postMessage({
         type: 'USER_INFO',
         data: {
@@ -54,7 +55,6 @@ function clearLoginInfo() {
   userInfo.value = null
   localStorage.removeItem('token')
   localStorage.removeItem('userInfo')
-  // 向插件发送未登录状态
   window.parent.postMessage({
     type: 'USER_INFO',
     data: null
@@ -64,7 +64,6 @@ function clearLoginInfo() {
 // 处理登出请求
 async function handleLogout() {
   try {
-    // 如果有API，调用登出API
     if (userInfo.value) {
       try {
         const token = localStorage.getItem('token')
@@ -76,10 +75,8 @@ async function handleLogout() {
       }
     }
     
-    // 清除本地登录信息
     clearLoginInfo()
     
-    // 向扩展发送登出成功消息
     window.parent.postMessage({
       type: 'LOGOUT_RESULT',
       success: true
@@ -96,17 +93,34 @@ async function handleLogout() {
 
 /**
  * 转换密码数据格式，从扩展格式到API格式
- * @param {Object} password - 扩展中的密码对象
- * @returns {Object} 转换后的密码对象
  */
-function convertPasswordFormat(password) {
-  return {
-    url: password.url,
-    username: password.username,
-    password: password.password,
-    notes: password.notes || '',
-    title: new URL(password.url).hostname,
-    lastModified: password.timestamp || Date.now()
+function convertPasswordFormat(password): DataRecord {
+  try {
+    const userId = Number(localStorage.getItem('userId') || '0')
+    
+    // 确保转换为API期望的DataRecord格式
+    return {
+      id: 0, // 新增时ID设为0，更新时会替换为实际ID
+      userId,
+      username: password.username || '',
+      password: password.password || '',
+      url: password.url || '',
+      notes: password.notes || '',
+      // 如果您的DataRecord还有其他必填字段，需要在这里添加
+      timestamp: password.timestamp || Date.now()
+    } as DataRecord
+  } catch (error) {
+    console.error('转换密码格式失败:', error)
+    // 返回基本格式避免完全失败
+    return {
+      id: 0,
+      userId: Number(localStorage.getItem('userId') || '0'),
+      username: password.username || '',
+      password: password.password || '',
+      url: password.url || '',
+      notes: '',
+      timestamp: Date.now()
+    } as DataRecord
   }
 }
 
@@ -117,8 +131,6 @@ async function handlePasswordSync(passwords) {
     if (!token) {
       throw new Error('未登录，无法同步')
     }
-
-    const headers = { Authorization: `Bearer ${token}` }
     
     // 同步统计
     const stats = {
@@ -135,33 +147,47 @@ async function handlePasswordSync(passwords) {
     // 逐个处理密码
     for (const password of passwords) {
       try {
-        // 1. 首先查询是否存在该URL的密码
-        const searchUrl = new URL(password.url).origin
-        const searchResponse = await axios.get(`/api/passwords/search`, {
-          params: { url: searchUrl },
-          headers
+        // 安全获取URL
+        let searchUrl = ''
+        try {
+          searchUrl = new URL(password.url).origin
+        } catch (urlError) {
+          console.warn('URL解析失败，使用原始URL:', password.url)
+          searchUrl = password.url
+        }
+        
+        // 1. 查询是否存在该URL的密码
+        const searchResponse = await getAccountList({
+          url: searchUrl,
+          page: 0,
+          size: 10
         })
 
         // 2. 判断是否存在数据
-        const existingPasswords = searchResponse.data.data || []
+        const existingPasswords = searchResponse.data?.content || []
         const convertedPassword = convertPasswordFormat(password)
 
+        // 3. 根据是否存在决定更新或创建
         if (existingPasswords.length > 0) {
           // 存在则更新第一条
           const existingId = existingPasswords[0].id
-          await axios.put(`/api/passwords/${existingId}`, convertedPassword, { headers })
+          convertedPassword.id = existingId // 设置正确的ID用于更新
+          
+          await updateAccount(convertedPassword)
           stats.updated++
+          console.log(`已更新记录，ID: ${existingId}`)
         } else {
           // 不存在则创建新的
-          await axios.post('/api/passwords', convertedPassword, { headers })
+          const response = await addAccount(convertedPassword)
           stats.created++
+          console.log('已创建新记录，ID:', response.data?.id)
         }
 
         // 更新进度
         stats.processed++
         sendSyncProgress(stats, `同步中: ${stats.processed}/${stats.total}`)
       } catch (itemError) {
-        console.error(`同步单个密码失败:`, itemError)
+        console.error(`同步单个密码失败:`, itemError.response?.data || itemError.message)
         stats.failed++
         stats.processed++
         sendSyncProgress(stats, `同步中: ${stats.processed}/${stats.total} (失败: ${stats.failed})`)
@@ -185,7 +211,7 @@ async function handlePasswordSync(passwords) {
     window.parent.postMessage({
       type: 'SYNC_RESULT',
       success: false,
-      error: error.message || '同步失败'
+      error: error.response?.data?.message || error.message || '同步失败'
     }, '*')
   }
 }
@@ -226,14 +252,12 @@ function handleStorageChange(event) {
 
 // 监听插件消息
 function handleExtensionMessage(event) {
-  // 验证消息来源
   if (!event.source || event.source !== window.parent) {
     return
   }
 
   console.log('收到扩展消息:', event.data)
   
-  // 确保消息来自扩展
   if (event.data.source !== 'extension') {
     return
   }
@@ -249,7 +273,7 @@ function handleExtensionMessage(event) {
       
     case 'SYNC_PASSWORDS':
       console.log('开始同步密码:', event.data.data)
-      if (event.data.data && event.data.data.passwords) {
+      if (event.data.data && Array.isArray(event.data.data.passwords)) {
         handlePasswordSync(event.data.data.passwords)
       } else {
         window.parent.postMessage({
