@@ -4,6 +4,7 @@
  */
 
 import { sendMessage } from 'webext-bridge/content-script'
+import { initAutofill, initAutofillStyles } from './autofill'
 
 // 登录信息类型定义
 interface LoginInfo {
@@ -30,6 +31,49 @@ export async function init(): Promise<void> {
   if (isInitialized) {
     return
   }
+
+  console.log('内容脚本初始化')
+  
+  // 初始化自动填充功能
+  initAutofillStyles()
+  initAutofill()
+  
+  // 监听DOM变化，可能的动态登录表单
+  const observer = new MutationObserver((mutations) => {
+    // 检查是否新增了密码输入框
+    const passwordInputAdded = mutations.some(mutation => 
+      Array.from(mutation.addedNodes).some(node => 
+        node instanceof HTMLElement && (
+          node.querySelector('input[type="password"]') || 
+          node.tagName === 'INPUT' && node.getAttribute('type') === 'password'
+        )
+      )
+    )
+    
+    if (passwordInputAdded) {
+      // 如果有新的密码框，重新初始化自动填充
+      initAutofill()
+    }
+  })
+  
+  observer.observe(document.body, { 
+    childList: true, 
+    subtree: true 
+  })
+  
+  // 监听URL变化，SPA应用可能不会刷新页面
+  let lastUrl = location.href
+  const urlObserver = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href
+      initAutofill()
+    }
+  })
+  
+  urlObserver.observe(document.querySelector('head'), {
+    childList: true,
+    subtree: true
+  })
 
   // 从storage恢复状态
   try {
