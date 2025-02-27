@@ -190,7 +190,9 @@ async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
     pendingLoginInfo = null
 
     // 通知 popup 更新显示，仅在确认 popup 存在时发送
-    browser.extension.getViews({ type: 'popup' }).length > 0 && notifyRecordsUpdate(records.length)
+    if (browser.extension.getViews({ type: 'popup' }).length > 0) {
+      notifyRecordsUpdate(records.length)
+    }
   }
   catch (error) {
     // 错误处理
@@ -231,8 +233,6 @@ async function checkNotificationPermission() {
   try {
     // 在某些浏览器中，这会检查通知权限
     const permissionStatus = await browser.permissions.contains({ permissions: ['notifications'] })
-    console.log('通知权限状态:', permissionStatus)
-
     if (!permissionStatus) {
       console.warn('没有通知权限，尝试请求...')
       await browser.permissions.request({ permissions: ['notifications'] })
@@ -245,3 +245,57 @@ async function checkNotificationPermission() {
 
 // 在初始化时调用
 checkNotificationPermission()
+
+/**
+ * 请求通知权限并向用户显示请求结果
+ * 适用于Chrome扩展环境
+ */
+async function askNotificationPermission(): Promise<boolean> {
+  try {
+    // 首先检查是否已有权限
+    const hasPermission = await browser.permissions.contains({ permissions: ['notifications'] })
+
+    if (hasPermission) {
+      return true
+    }
+
+    // 请求权限，显示浏览器原生的权限请求对话框
+    const granted = await browser.permissions.request({ permissions: ['notifications'] })
+
+    // 根据结果进行处理
+    if (granted) {
+      // 可以在这里显示一个测试通知，确认权限是否真的生效
+      browser.notifications.create('test-notification', {
+        type: 'basic',
+        iconUrl: browser.runtime.getURL('assets/icon-512.png'),
+        title: '通知权限测试',
+        message: '您已成功启用通知功能！',
+      })
+
+      return true
+    }
+    else {
+      // 向用户展示权限被拒绝的后果
+      // 可以向其他页面发送消息，显示提醒
+      sendMessage('NOTIFICATION_PERMISSION_DENIED', {}, { context: 'popup' })
+        .catch(() => { /* 忽略错误 */ })
+
+      return false
+    }
+  }
+  catch {
+    return false
+  }
+}
+
+// 当插件安装/启动时调用
+browser.runtime.onInstalled.addListener((): void => {
+  // 延迟请求通知权限，避免同时出现太多权限请求对话框
+  setTimeout(() => askNotificationPermission(), 3000)
+})
+
+// 添加一个消息处理器，供前端调用权限请求
+onMessage('request-notification-permission', async () => {
+  const granted = await askNotificationPermission()
+  return { granted }
+})

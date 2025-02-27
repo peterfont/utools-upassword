@@ -17,8 +17,6 @@ export async function sendInsecurePasswordNotification(url: string, username: st
       || browser.runtime.getURL('icon-512.png')
       || browser.runtime.getURL('icon.png')
 
-    console.log('尝试创建通知，图标路径:', iconUrl)
-
     // 创建系统通知，添加更多选项以确保显示
     const notificationId = await browser.notifications.create(`password-insecure-${Date.now()}`, {
       type: 'basic',
@@ -28,8 +26,6 @@ export async function sendInsecurePasswordNotification(url: string, username: st
       priority: 2,
       requireInteraction: true, // 要求用户交互才能消失
     })
-
-    console.log('通知已创建，ID:', notificationId)
 
     // 添加通知点击处理
     browser.notifications.onClicked.addListener((clickedId) => {
@@ -44,11 +40,11 @@ export async function sendInsecurePasswordNotification(url: string, username: st
       await sendMessage('PASSWORD_INSECURE', { url, username, reason }, { context: 'popup' })
     }
     catch (err) {
-      console.debug('发送到popup失败，这是正常的', err)
+      // console.debug('发送到popup失败，这是正常的', err)
     }
   }
   catch (error) {
-    console.error('发送密码不安全通知失败:', error)
+    // console.error('发送密码不安全通知失败:', error)
 
     // 备用方案：如果通知API失败，尝试使用alert
     try {
@@ -63,7 +59,7 @@ export async function sendInsecurePasswordNotification(url: string, username: st
       }, 1000)
     }
     catch (e) {
-      console.error('备用通知方案也失败了:', e)
+      // console.error('备用通知方案也失败了:', e)
     }
   }
 }
