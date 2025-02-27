@@ -22,6 +22,7 @@ export const sharedConfig: UserConfig = {
   define: {
     __DEV__: isDev,
     __NAME__: JSON.stringify(packageJson.name),
+    __DISPLAY_NAME__: JSON.stringify(packageJson.displayName),
     __VERSION__: JSON.stringify(packageJson.version),
   },
   plugins: [

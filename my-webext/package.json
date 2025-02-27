@@ -1,6 +1,6 @@
 {
   "name": "vitesse-webext",
-  "displayName": "密码风险检测和保护",
+  "displayName": "密码安全助手",
   "version": "0.0.1",
   "private": true,
   "packageManager": "pnpm@9.7.1",

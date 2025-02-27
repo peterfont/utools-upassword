@@ -16,9 +16,10 @@ const [show, toggle] = useToggle(false)
       :class="show ? 'opacity-100' : 'opacity-0'"
     >
       <h1 class="text-lg">
-        Vitesse WebExt
+        {{ __DISPLAY_NAME__ }}
       </h1>
-      <SharedSubtitle />
+      <div>密码保护中...</div>
+      <!-- <SharedSubtitle /> -->
     </div>
     <button
       class="flex w-10 h-10 rounded-full shadow cursor-pointer border-none"
