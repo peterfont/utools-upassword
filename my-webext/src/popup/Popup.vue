@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { sendMessage } from 'webext-bridge/popup'
 import browser from 'webextension-polyfill'
-import { storageDemo } from '~/logic/storage'
-import { type AppConfig, loadConfig } from '~/config'
 
 // 消息提示相关状态
 const messageVisible = ref(false)
@@ -15,9 +12,7 @@ const isLoggedIn = ref(false)
 const username = ref('')
 const passwordCount = ref(0)
 const isSyncing = ref(false)
-
-// 应用配置
-const config = ref<AppConfig | null>(null)
+const iframeLoaded = ref(false)
 
 /**
  * 显示消息提示
@@ -35,18 +30,6 @@ function showMessage(type: 'success' | 'warning' | 'error', text: string) {
 }
 
 /**
- * 初始化应用配置
- */
-async function initConfig() {
-  try {
-    config.value = await loadConfig()
-  }
-  catch (error) {
-    console.error('初始化配置失败:', error)
-  }
-}
-
-/**
  * 打开选项页
  */
 function openOptionsPage() {
@@ -58,8 +41,8 @@ function openOptionsPage() {
  */
 async function requestNotificationPermission() {
   try {
-    const response = await sendMessage('request-notification-permission', {}, { context: 'background' })
-    if (response.granted) {
+    const permission = await Notification.requestPermission()
+    if (permission === 'granted') {
       showMessage('success', '通知功能已启用')
     }
     else {
@@ -69,21 +52,6 @@ async function requestNotificationPermission() {
   catch (error) {
     console.error('请求权限失败:', error)
     showMessage('error', '请求权限失败')
-  }
-}
-
-/**
- * 检查登录状态
- */
-async function checkLoginStatus() {
-  try {
-    const result = await sendMessage('check-login-status', {}, { context: 'background' })
-    isLoggedIn.value = result.isLoggedIn
-    username.value = result.username || ''
-  }
-  catch (error) {
-    console.error('检查登录状态失败:', error)
-    isLoggedIn.value = false
   }
 }
 
@@ -106,17 +74,12 @@ async function getPasswordCount() {
  */
 async function handleLogin() {
   try {
-    // 使用配置模块中的登录URL
-    if (!config.value)
-      await initConfig()
-
     await browser.tabs.create({
-      url: config.value?.loginUrl || 'https://account.password-manager.example.com/login',
+      url: 'http://localhost:3000/login',
     })
     window.close() // 关闭弹窗
   }
-  catch (error) {
-    console.error('打开登录页面失败:', error)
+  catch {
     showMessage('error', '打开登录页面失败')
   }
 }
@@ -126,10 +89,20 @@ async function handleLogin() {
  */
 async function handleLogout() {
   try {
-    await sendMessage('logout', {}, { context: 'background' })
-    isLoggedIn.value = false
-    username.value = ''
-    showMessage('success', '已成功退出登录')
+    // 向web端发送登出消息
+    if (iframeLoaded.value) {
+      const iframe = document.getElementById('extension-bridge') as HTMLIFrameElement
+      iframe.contentWindow?.postMessage({ type: 'LOGOUT', source: 'extension' }, '*')
+      
+      // 等待web端处理后再更新状态
+      setTimeout(() => {
+        isLoggedIn.value = false
+        username.value = ''
+        showMessage('success', '已成功退出登录')
+      }, 500)
+    } else {
+      showMessage('error', '无法连接到服务器')
+    }
   }
   catch (error) {
     console.error('登出失败:', error)
@@ -148,21 +121,34 @@ async function syncPasswords() {
 
   try {
     isSyncing.value = true
-    const result = await sendMessage('sync-passwords', {}, { context: 'background' })
-
-    if (result.success) {
-      showMessage('success', '密码同步成功')
-    }
-    else {
-      showMessage('error', `同步失败: ${result.error || '未知错误'}`)
+    
+    // 获取本地保存的密码
+    const result = await browser.storage.local.get('loginRecords')
+    const records = result.loginRecords || []
+    
+    // 向web端发送同步请求
+    if (iframeLoaded.value) {
+      const iframe = document.getElementById('extension-bridge') as HTMLIFrameElement
+      iframe.contentWindow?.postMessage({ 
+        type: 'SYNC_PASSWORDS', 
+        source: 'extension',
+        data: { passwords: records }
+      }, '*')
+      
+      // 显示临时成功信息，实际结果应该由web端返回
+      showMessage('success', '正在同步密码...')
+    } else {
+      throw new Error('无法连接到服务器')
     }
   }
   catch (error) {
     console.error('同步密码失败:', error)
-    showMessage('error', '同步密码失败')
+    showMessage('error', `同步密码失败: ${error instanceof Error ? error.message : '未知错误'}`)
   }
   finally {
-    isSyncing.value = false
+    setTimeout(() => {
+      isSyncing.value = false
+    }, 1000)
   }
 }
 
@@ -170,32 +156,102 @@ async function syncPasswords() {
  * 打开密码管理页面
  */
 function openPasswordManager() {
-  if (!config.value) {
-    initConfig().then(() => {
-      browser.tabs.create({
-        url: config.value?.passwordManagerUrl || 'https://account.password-manager.example.com/manager',
-      })
-    })
+  browser.tabs.create({
+    url: 'http://localhost:3000/account',
+  })
+}
+
+// 处理来自web端的消息
+function handleWebMessage(event: MessageEvent) {
+  // 忽略不是来自我们iframe的消息
+  if (!event.source || event.source !== (document.getElementById('extension-bridge') as HTMLIFrameElement).contentWindow) {
+    return
   }
-  else {
-    browser.tabs.create({
-      url: config.value.passwordManagerUrl,
-    })
+
+  console.log('收到Web消息:', event.data)
+  
+  switch (event.data.type) {
+    case 'USER_INFO':
+      const userInfo = event.data.data
+      if (userInfo) {
+        isLoggedIn.value = true
+        username.value = userInfo.username
+      } else {
+        isLoggedIn.value = false
+        username.value = ''
+      }
+      break
+      
+    case 'IFRAME_LOADED':
+      iframeLoaded.value = true
+      fetchUserInfo()
+      break
+      
+    case 'SYNC_RESULT':
+      isSyncing.value = false
+      if (event.data.success) {
+        showMessage('success', `同步成功! 上传: ${event.data.stats?.uploaded || 0}, 下载: ${event.data.stats?.downloaded || 0}`)
+        // 更新本地密码数量
+        getPasswordCount()
+      } else {
+        showMessage('error', `同步失败: ${event.data.error || '未知错误'}`)
+      }
+      break
+      
+    case 'LOGOUT_RESULT':
+      if (event.data.success) {
+        isLoggedIn.value = false
+        username.value = ''
+        showMessage('success', '已成功退出登录')
+      } else {
+        showMessage('error', `登出失败: ${event.data.error || '未知错误'}`)
+      }
+      break
+  }
+}
+
+// 主动查询用户信息
+function fetchUserInfo() {
+  if (iframeLoaded.value) {
+    const iframe = document.getElementById('extension-bridge') as HTMLIFrameElement
+    iframe.contentWindow?.postMessage({ type: 'GET_USER_INFO', source: 'extension' }, '*')
+  } else {
+    console.warn('iframe未加载完成，无法获取用户信息')
   }
 }
 
 // 页面加载时初始化
 onMounted(async () => {
-  // 首先加载配置
-  await initConfig()
-  // 然后检查登录状态和密码数量
-  await checkLoginStatus()
+  // 添加消息监听
+  window.addEventListener('message', handleWebMessage)
+  // 获取密码数量
   await getPasswordCount()
+
+  // iframe加载可能需要时间，如果10秒后还未收到IFRAME_LOADED消息，显示错误
+  setTimeout(() => {
+    if (!iframeLoaded.value) {
+      console.error('iframe加载超时')
+      showMessage('warning', '无法连接到服务器，部分功能可能不可用')
+    }
+  }, 10000)
+})
+
+// 组件卸载时移除事件监听
+onUnmounted(() => {
+  window.removeEventListener('message', handleWebMessage)
 })
 </script>
 
 <template>
   <main class="w-[300px] p-4 text-gray-700">
+    <!-- 隐藏的iframe用于与web端通信 -->
+    <iframe
+      id="extension-bridge"
+      src="http://localhost:3000/extension-bridge"
+      style="display: none; width: 0; height: 0; border: 0;"
+      sandbox="allow-scripts allow-same-origin"
+    />
+
     <!-- 消息提示区域 -->
     <div
       v-if="messageVisible"
@@ -301,7 +357,7 @@ onMounted(async () => {
           通知
         </div>
         <div class="text-sm">
-          启用通知提醒
+          开启通知提醒
         </div>
       </button>
     </div>
