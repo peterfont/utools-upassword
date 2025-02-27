@@ -16,7 +16,7 @@ const [show, toggle] = useToggle(false)
       :class="show ? 'opacity-100' : 'opacity-0'"
     >
       <h1 class="text-lg">
-        {{ __DISPLAY_NAME__ }}
+        密码安全助手
       </h1>
       <div>密码保护中...</div>
       <!-- <SharedSubtitle /> -->

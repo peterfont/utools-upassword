@@ -139,9 +139,6 @@ browser.webNavigation.onCompleted.addListener((details) => {
  */
 async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
   try {
-    // 检查密码是否符合规则
-    const checkResult = await checkPassword(loginInfo.password)
-
     // 获取现有记录
     const result = await browser.storage.local.get('loginRecords')
     const records: PasswordRecord[] = result.loginRecords || []
@@ -150,16 +147,6 @@ async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
     const newRecord: PasswordRecord = {
       ...loginInfo,
       timestamp: Date.now(),
-    }
-
-    // 如果密码不合法，发送通知
-    if (!checkResult.valid) {
-      console.warn('检测到不安全的密码:', checkResult.reason)
-      await sendInsecurePasswordNotification(
-        loginInfo.url,
-        loginInfo.username,
-        checkResult.reason,
-      )
     }
 
     // 检查是否存在相同网站的记录
@@ -189,10 +176,20 @@ async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
     // 清除临时缓存
     pendingLoginInfo = null
 
-    // 通知 popup 更新显示，仅在确认 popup 存在时发送
-    if (browser.extension.getViews({ type: 'popup' }).length > 0) {
-      notifyRecordsUpdate(records.length)
+    // 检查密码是否符合规则
+    const checkResult = await checkPassword(loginInfo.password)
+
+    // 如果密码不合法，发送通知
+    if (!checkResult.valid) {
+      console.warn('检测到不安全的密码:', checkResult.reason)
+      await sendInsecurePasswordNotification(
+        loginInfo.url,
+        loginInfo.username,
+        checkResult.reason,
+      )
     }
+    // 通知 popup 更新显示，仅在确认 popup 存在时发送
+    notifyRecordsUpdate(records.length)
   }
   catch (error) {
     // 错误处理

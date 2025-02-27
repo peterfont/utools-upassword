@@ -93,7 +93,7 @@ async function handleLogout() {
     if (iframeLoaded.value) {
       const iframe = document.getElementById('extension-bridge') as HTMLIFrameElement
       iframe.contentWindow?.postMessage({ type: 'LOGOUT', source: 'extension' }, '*')
-      
+
       // 等待web端处理后再更新状态
       setTimeout(() => {
         isLoggedIn.value = false
@@ -121,20 +121,20 @@ async function syncPasswords() {
 
   try {
     isSyncing.value = true
-    
+
     // 获取本地保存的密码
     const result = await browser.storage.local.get('loginRecords')
     const records = result.loginRecords || []
-    
+
     // 向web端发送同步请求
     if (iframeLoaded.value) {
       const iframe = document.getElementById('extension-bridge') as HTMLIFrameElement
-      iframe.contentWindow?.postMessage({ 
-        type: 'SYNC_PASSWORDS', 
+      iframe.contentWindow?.postMessage({
+        type: 'SYNC_PASSWORDS',
         source: 'extension',
         data: { passwords: records }
       }, '*')
-      
+
       // 显示临时成功信息，实际结果应该由web端返回
       showMessage('success', '正在同步密码...')
     } else {
@@ -168,8 +168,6 @@ function handleWebMessage(event: MessageEvent) {
     return
   }
 
-  console.log('收到Web消息:', event.data)
-  
   switch (event.data.type) {
     case 'USER_INFO':
       const userInfo = event.data.data
@@ -181,12 +179,12 @@ function handleWebMessage(event: MessageEvent) {
         username.value = ''
       }
       break
-      
+
     case 'IFRAME_LOADED':
       iframeLoaded.value = true
       fetchUserInfo()
       break
-      
+
     case 'SYNC_RESULT':
       isSyncing.value = false
       if (event.data.success) {
@@ -197,7 +195,19 @@ function handleWebMessage(event: MessageEvent) {
         showMessage('error', `同步失败: ${event.data.error || '未知错误'}`)
       }
       break
-      
+
+    case 'SYNC_PROGRESS':
+      // 更新同步进度状态
+      const progress = event.data.stats
+      const progressPercent = Math.floor((progress.processed / progress.total) * 100)
+
+      // 更新同步状态文本
+      syncStatusText.value = `${event.data.message} (${progressPercent}%)`
+
+      // 如果需要，你可以显示进度条
+      syncProgress.value = progressPercent
+      break;
+
     case 'LOGOUT_RESULT':
       if (event.data.success) {
         isLoggedIn.value = false
@@ -245,23 +255,16 @@ onUnmounted(() => {
 <template>
   <main class="w-[300px] p-4 text-gray-700">
     <!-- 隐藏的iframe用于与web端通信 -->
-    <iframe
-      id="extension-bridge"
-      src="http://localhost:3000/extension-bridge"
-      style="display: none; width: 0; height: 0; border: 0;"
-      sandbox="allow-scripts allow-same-origin"
-    />
+    <iframe id="extension-bridge" src="http://localhost:3000/extension-bridge"
+      style="display: none; width: 0; height: 0; border: 0;" sandbox="allow-scripts allow-same-origin" />
 
     <!-- 消息提示区域 -->
-    <div
-      v-if="messageVisible"
-      class="fixed top-2 left-1/2 transform -translate-x-1/2 p-2 rounded shadow-md z-50 text-sm"
-      :class="{
+    <div v-if="messageVisible"
+      class="fixed top-2 left-1/2 transform -translate-x-1/2 p-2 rounded shadow-md z-50 text-sm" :class="{
         'bg-green-100 text-green-800': messageType === 'success',
         'bg-yellow-100 text-yellow-800': messageType === 'warning',
         'bg-red-100 text-red-800': messageType === 'error',
-      }"
-    >
+      }">
       {{ messageText }}
     </div>
 
@@ -286,10 +289,7 @@ onUnmounted(() => {
             {{ username }}
           </div>
         </div>
-        <button
-          class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-          @click="handleLogout"
-        >
+        <button class="px-2 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300" @click="handleLogout">
           退出登录
         </button>
       </div>
@@ -297,10 +297,7 @@ onUnmounted(() => {
         <div class="text-gray-600">
           未登录
         </div>
-        <button
-          class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-          @click="handleLogin"
-        >
+        <button class="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600" @click="handleLogin">
           去登录
         </button>
       </div>
@@ -317,19 +314,13 @@ onUnmounted(() => {
             已保存 {{ passwordCount }} 个密码
           </div>
         </div>
-        <button
-          class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
-          :disabled="!isLoggedIn || isSyncing"
-          @click="syncPasswords"
-        >
+        <button class="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50"
+          :disabled="!isLoggedIn || isSyncing" @click="syncPasswords">
           {{ isSyncing ? '同步中...' : '同步到云端' }}
         </button>
       </div>
       <div v-if="isLoggedIn" class="text-right">
-        <button
-          class="text-sm text-blue-500 hover:underline"
-          @click="openPasswordManager"
-        >
+        <button class="text-sm text-blue-500 hover:underline" @click="openPasswordManager">
           管理我的密码 →
         </button>
       </div>
@@ -337,10 +328,7 @@ onUnmounted(() => {
 
     <!-- 设置区域 -->
     <div class="grid grid-cols-2 gap-3">
-      <button
-        class="bg-gray-100 p-3 rounded text-center hover:bg-gray-200"
-        @click="openOptionsPage"
-      >
+      <button class="bg-gray-100 p-3 rounded text-center hover:bg-gray-200" @click="openOptionsPage">
         <div class="material-icons text-gray-700 mb-1">
           设置
         </div>
@@ -349,10 +337,7 @@ onUnmounted(() => {
         </div>
       </button>
 
-      <button
-        class="bg-gray-100 p-3 rounded text-center hover:bg-gray-200"
-        @click="requestNotificationPermission"
-      >
+      <button class="bg-gray-100 p-3 rounded text-center hover:bg-gray-200" @click="requestNotificationPermission">
         <div class="material-icons text-gray-700 mb-1">
           通知
         </div>

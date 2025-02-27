@@ -26,7 +26,7 @@ export const defaultConfig: AppConfig = {
   passwordManagerUrl: 'http://localhost:3000/login',
   extensionBridgeUrl: 'http://localhost:3000/extension-bridge',
   // 使用全局注入的变量
-  appName: __DISPLAY_NAME__ || '密码安全助手',
+  appName: '密码安全助手',
   appVersion: __VERSION__ || '1.0.0',
 
   enableAutoSync: false,
