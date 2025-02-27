@@ -40,6 +40,8 @@ export async function getManifest() {
       'webNavigation',
       'activeTab',
       'sidePanel',
+      'notifications', // 添加通知权限
+      'scripting', // 添加这个权限用于备用通知方案
     ],
     host_permissions: ['*://*/*'],
     content_scripts: [

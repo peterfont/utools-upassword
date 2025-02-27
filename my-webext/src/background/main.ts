@@ -1,6 +1,8 @@
 import { onMessage, sendMessage } from 'webext-bridge/background'
 import type { Tabs } from 'webextension-polyfill'
 import browser from 'webextension-polyfill'
+import { checkPassword, getDefaultPasswordRules, getPasswordRules } from '~/utils/passwordChecker'
+import { notifyRecordsUpdate, sendInsecurePasswordNotification } from '~/utils/notificationManager'
 
 // only on dev mode
 if (import.meta.hot) {
@@ -137,9 +139,28 @@ browser.webNavigation.onCompleted.addListener((details) => {
  */
 async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
   try {
+    // 检查密码是否符合规则
+    const checkResult = await checkPassword(loginInfo.password)
+
     // 获取现有记录
     const result = await browser.storage.local.get('loginRecords')
     const records: PasswordRecord[] = result.loginRecords || []
+
+    // 更新或添加记录
+    const newRecord: PasswordRecord = {
+      ...loginInfo,
+      timestamp: Date.now(),
+    }
+
+    // 如果密码不合法，发送通知
+    if (!checkResult.valid) {
+      console.warn('检测到不安全的密码:', checkResult.reason)
+      await sendInsecurePasswordNotification(
+        loginInfo.url,
+        loginInfo.username,
+        checkResult.reason,
+      )
+    }
 
     // 检查是否存在相同网站的记录
     const sameUrlIndex = records.findIndex(
@@ -152,12 +173,6 @@ async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
         }
       },
     )
-
-    // 更新或添加记录
-    const newRecord: PasswordRecord = {
-      ...loginInfo,
-      timestamp: Date.now(),
-    }
 
     if (sameUrlIndex !== -1) {
       // 更新现有记录
@@ -174,23 +189,14 @@ async function saveLoginInfo(loginInfo: LoginInfo): Promise<void> {
     // 清除临时缓存
     pendingLoginInfo = null
 
-    // 通知 popup 更新显示
-    notifyRecordsUpdate(records.length)
+    // 通知 popup 更新显示，仅在确认 popup 存在时发送
+    browser.extension.getViews({ type: 'popup' }).length > 0 && notifyRecordsUpdate(records.length)
   }
-  catch {
+  catch (error) {
     // 错误处理
+    console.error('保存登录信息失败:', error)
     pendingLoginInfo = null
   }
-}
-
-/**
- * 通知前端记录已更新
- *
- * @param recordCount - 当前记录总数
- */
-function notifyRecordsUpdate(recordCount: number): void {
-  // 使用 webext-bridge 发送消息
-  sendMessage('UPDATE_RECORDS', { recordCount }, { context: 'popup' })
 }
 
 // 处理保存密码规则
@@ -208,23 +214,34 @@ onMessage('save-password-rules', async ({ data }) => {
 // 处理获取密码规则
 onMessage('get-password-rules', async () => {
   try {
-    const result = await browser.storage.sync.get('passwordRules')
-    return {
-      passwordRules: result.passwordRules || {
-        minLength: 8,
-        maxLength: 20,
-        minDigits: 1,
-        minSpecialChars: 1,
-        minUpperCaseLetters: 1,
-        minLowerCaseLetters: 1,
-      },
-    }
+    const rules = await getPasswordRules()
+    return { passwordRules: rules }
   }
   catch (error) {
     console.error('获取密码规则失败:', error)
     return {
-      passwordRules: null,
+      passwordRules: getDefaultPasswordRules(),
       error: String(error),
     }
   }
 })
+
+// 检查通知权限
+async function checkNotificationPermission() {
+  try {
+    // 在某些浏览器中，这会检查通知权限
+    const permissionStatus = await browser.permissions.contains({ permissions: ['notifications'] })
+    console.log('通知权限状态:', permissionStatus)
+
+    if (!permissionStatus) {
+      console.warn('没有通知权限，尝试请求...')
+      await browser.permissions.request({ permissions: ['notifications'] })
+    }
+  }
+  catch (error) {
+    console.error('检查通知权限失败:', error)
+  }
+}
+
+// 在初始化时调用
+checkNotificationPermission()
