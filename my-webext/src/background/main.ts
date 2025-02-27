@@ -288,17 +288,8 @@ async function askNotificationPermission(): Promise<boolean> {
     else {
       // 向用户展示权限被拒绝的后果
       // 可以向其他页面发送消息，显示提醒
-      // 修改通知发送相关的代码
-      export function notifyRecordsUpdate(recordCount: number): void {
-        sendMessage('UPDATE_RECORDS', { recordCount }, { context: 'popup' })
-          .catch(handleRuntimeError)
-      }
-
-      // 修改权限被拒绝的通知
-      else {
-        sendMessage('NOTIFICATION_PERMISSION_DENIED', {}, { context: 'popup' })
-          .catch(handleRuntimeError)
-      }
+      sendMessage('NOTIFICATION_PERMISSION_DENIED', {}, { context: 'popup' })
+        .catch(handleRuntimeError)
 
       return false
     }
