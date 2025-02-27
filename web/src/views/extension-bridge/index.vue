@@ -94,6 +94,22 @@ async function handleLogout() {
   }
 }
 
+/**
+ * 转换密码数据格式，从扩展格式到API格式
+ * @param {Object} password - 扩展中的密码对象
+ * @returns {Object} 转换后的密码对象
+ */
+function convertPasswordFormat(password) {
+  return {
+    url: password.url,
+    username: password.username,
+    password: password.password,
+    notes: password.notes || '',
+    title: new URL(password.url).hostname,
+    lastModified: password.timestamp || Date.now()
+  }
+}
+
 // 处理密码同步请求
 async function handlePasswordSync(passwords) {
   try {
@@ -102,23 +118,68 @@ async function handlePasswordSync(passwords) {
       throw new Error('未登录，无法同步')
     }
 
-    // 调用API同步密码
-    const response = await axios.post('/api/passwords/sync', {
-      passwords,
-      deviceId: getDeviceId()
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const headers = { Authorization: `Bearer ${token}` }
+    
+    // 同步统计
+    const stats = {
+      total: passwords.length,
+      processed: 0,
+      created: 0,
+      updated: 0,
+      failed: 0
+    }
 
-    // 发送同步结果回扩展
+    // 开始通知
+    sendSyncProgress(stats, '开始同步...')
+
+    // 逐个处理密码
+    for (const password of passwords) {
+      try {
+        // 1. 首先查询是否存在该URL的密码
+        const searchUrl = new URL(password.url).origin
+        const searchResponse = await axios.get(`/api/passwords/search`, {
+          params: { url: searchUrl },
+          headers
+        })
+
+        // 2. 判断是否存在数据
+        const existingPasswords = searchResponse.data.data || []
+        const convertedPassword = convertPasswordFormat(password)
+
+        if (existingPasswords.length > 0) {
+          // 存在则更新第一条
+          const existingId = existingPasswords[0].id
+          await axios.put(`/api/passwords/${existingId}`, convertedPassword, { headers })
+          stats.updated++
+        } else {
+          // 不存在则创建新的
+          await axios.post('/api/passwords', convertedPassword, { headers })
+          stats.created++
+        }
+
+        // 更新进度
+        stats.processed++
+        sendSyncProgress(stats, `同步中: ${stats.processed}/${stats.total}`)
+      } catch (itemError) {
+        console.error(`同步单个密码失败:`, itemError)
+        stats.failed++
+        stats.processed++
+        sendSyncProgress(stats, `同步中: ${stats.processed}/${stats.total} (失败: ${stats.failed})`)
+      }
+    }
+
+    // 发送最终同步结果
     window.parent.postMessage({
       type: 'SYNC_RESULT',
-      success: true,
-      stats: response.data.stats || {
-        uploaded: passwords.length,
-        downloaded: 0
-      }
+      success: stats.failed < stats.total,
+      stats: {
+        uploaded: stats.created + stats.updated,
+        downloaded: 0,
+        failed: stats.failed
+      },
+      message: `同步完成: 新增${stats.created}条, 更新${stats.updated}条${stats.failed > 0 ? ', 失败'+stats.failed+'条' : ''}`
     }, '*')
+
   } catch (error) {
     console.error('密码同步失败:', error)
     window.parent.postMessage({
@@ -127,6 +188,23 @@ async function handlePasswordSync(passwords) {
       error: error.message || '同步失败'
     }, '*')
   }
+}
+
+/**
+ * 发送同步进度通知
+ */
+function sendSyncProgress(stats, message) {
+  window.parent.postMessage({
+    type: 'SYNC_PROGRESS',
+    stats: {
+      total: stats.total,
+      processed: stats.processed,
+      created: stats.created,
+      updated: stats.updated,
+      failed: stats.failed
+    },
+    message
+  }, '*')
 }
 
 // 获取设备ID
