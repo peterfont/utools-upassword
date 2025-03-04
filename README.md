@@ -19,7 +19,7 @@ UTools UPassword 是一款现代化的密码管理Chrome扩展，帮助用户安
 
 ```
 utools-upassword/
-├── my-webext/             # 浏览器扩展代码
+├── webext/             # 浏览器扩展代码
 │   ├── src/
 │   │   ├── background/    # 后台脚本
 │   │   ├── contentScripts/# 内容脚本(自动填充等功能)
@@ -47,7 +47,7 @@ utools-upassword/
 
 ```bash
 # 安装扩展端依赖
-cd my-webext
+cd webext
 pnpm install
 
 # 安装Web端依赖
@@ -61,7 +61,7 @@ pnpm install
 
 ```bash
 # 进入扩展目录
-cd my-webext
+cd webext
 
 # 启动开发服务 (Chrome)
 pnpm dev
@@ -102,7 +102,7 @@ pnpm lint
 ### 构建扩展
 
 ```bash
-cd my-webext
+cd webext
 
 # 完整构建流程
 pnpm build
@@ -149,7 +149,7 @@ pnpm build
 1. 在Chrome中打开 `chrome://extensions/`
 2. 打开右上角的"开发者模式"
 3. 点击"加载已解压的扩展程序"
-4. 选择 `my-webext/extension` 目录
+4. 选择 `webext/extension` 目录
 
 ### 正式版安装
 
