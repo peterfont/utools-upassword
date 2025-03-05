@@ -259,9 +259,12 @@ const handleSubmit = async () => {
         userId: Number(localStorage.getItem('userId') || '0')
       } as AccountRecord)
     } else {
+      const { id, username, password, url } = form.value
       await updateAccount({
-        ...form.value,
-        id: Number(form.value.id),
+        id: Number(id),
+        username,
+        password,
+        url,
         userId: Number(localStorage.getItem('userId') || '0')
       } as AccountRecord)
     }

@@ -83,7 +83,7 @@ const handleLogin = async () => {
     
     loading.value = true
     const response = await login(loginForm)
-    const token = response.data
+    const { token } = response.data
     // 存储token到localStorage
     localStorage.setItem('token', token)
     // 获取用户信息并存储到localStorage

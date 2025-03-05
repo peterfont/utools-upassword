@@ -41,7 +41,10 @@ export class UsersService {
 
   async login(user: any) {
     const payload = { username: user.username, sub: user.id };
-    return this.jwtService.sign(payload)
+    const token = this.jwtService.sign(payload);
+    return {
+      token
+    };
   }
 
   async findOne(id: number): Promise<User> {

@@ -43,6 +43,13 @@ export class PasswordsService {
   }
 
   async update(id: number, updatePasswordDto: Partial<Password>): Promise<Password> {
+    const existingPassword = await this.passwordRepository.findOne({ where: { id } });
+    if (!existingPassword) {
+      throw new Error('密码记录不存在');
+    }
+    if (existingPassword.userId !== updatePasswordDto.userId) {
+      throw new Error('无权限更新此密码记录');
+    }
     await this.passwordRepository.update(id, updatePasswordDto);
     return await this.passwordRepository.findOne({ where: { id } });
   }

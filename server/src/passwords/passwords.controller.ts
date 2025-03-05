@@ -11,18 +11,17 @@ import { PasswordsService } from './passwords.service';
 export class PasswordsController {
   constructor(private readonly passwordsService: PasswordsService) {}
 
-  @Get()
+  @Get('page')
   @ApiOperation({ summary: '获取密码列表' })
   @ApiResponse({ status: 200, description: '成功获取密码列表' })
   async findAll(@Query() query: { page?: number; size?: number; username?: string; url?: string }, @Request() req) {
-    const { page = 0, size = 10, username, url } = query;
+    const { page = 0, size = 10, username = '', url = '' } = query;
     const [items, total] = await this.passwordsService.findAll(page, size, req, username, url);
     
     return {
-      code: '200',
-      msg: '获取成功',
+      code: 0,
+      message: '获取成功',
       success: true,
-      fail: false,
       data: {
         content: items,
         totalElements: total,
@@ -48,10 +47,9 @@ export class PasswordsController {
       userId: req.user.id
     });
     return {
-      code: '200',
-      msg: '创建成功',
+      code: 0,
+      message: '创建成功',
       success: true,
-      fail: false,
       data: result
     };
   }
@@ -59,15 +57,25 @@ export class PasswordsController {
   @Put()
   @ApiOperation({ summary: '更新密码记录' })
   @ApiResponse({ status: 200, description: '成功更新密码记录' })
-  async update(@Body() updatePasswordDto: Partial<Password>) {
-    const result = await this.passwordsService.update(updatePasswordDto.id, updatePasswordDto);
-    return {
-      code: '200',
-      msg: '更新成功',
-      success: true,
-      fail: false,
-      data: result
-    };
+  async update(@Body() updatePasswordDto: Partial<Password>, @Request() req) {
+    try {
+      // 确保更新的记录属于当前登录用户
+      updatePasswordDto.userId = req.user.id;
+      const result = await this.passwordsService.update(updatePasswordDto.id, updatePasswordDto);
+      return {
+        code: 0,
+        message: '更新成功',
+        success: true,
+        data: result
+      };
+    } catch (error) {
+      return {
+        code: 1,
+        message: error.message || '更新失败',
+        success: false,
+        data: null
+      };
+    }
   }
 
   @Delete(':id')
@@ -76,10 +84,9 @@ export class PasswordsController {
   async remove(@Param('id') id: number) {
     await this.passwordsService.remove(id);
     return {
-      code: '200',
-      msg: '删除成功',
+      code: 0,
+      message: '删除成功',
       success: true,
-      fail: false,
       data: 'success'
     };
   }

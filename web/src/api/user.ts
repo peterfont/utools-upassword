@@ -41,7 +41,7 @@ export const register = (data: LoginData) => {
 // 获取用户信息
 export const getUserInfo = () => {
   return request({
-    url: '/auth/getUserInfo',
+    url: '/auth/user/info',
     method: 'get'
   })
 }
