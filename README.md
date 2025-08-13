@@ -1,4 +1,4 @@
-正在收集工作区信息# UTools UPassword 项目启动和打包文档
+# UTools UPassword 项目启动和打包文档
 
 ## 目录
 
